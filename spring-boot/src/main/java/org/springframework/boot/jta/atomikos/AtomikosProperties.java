@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,23 +16,88 @@
 
 package org.springframework.boot.jta.atomikos;
 
-import java.util.Map;
 import java.util.Properties;
-import java.util.TreeMap;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Bean friendly variant of
- * <a href="http://www.atomikos.com/Documentation/JtaProperties">Atomikos configuration
+ * <a href="https://www.atomikos.com/Documentation/JtaProperties">Atomikos configuration
  * properties</a>. Allows for setter based configuration and is amiable to relaxed data
  * binding.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
  * @since 1.2.0
  * @see #asProperties()
  */
+@ConfigurationProperties(prefix = "spring.jta.atomikos.properties")
 public class AtomikosProperties {
 
-	private final Map<String, String> values = new TreeMap<String, String>();
+	/**
+	 * Transaction manager implementation that should be started.
+	 */
+	private String service;
+
+	/**
+	 * Maximum timeout (in milliseconds) that can be allowed for transactions.
+	 */
+	private long maxTimeout = 300000;
+
+	/**
+	 * Default timeout for JTA transactions.
+	 */
+	private long defaultJtaTimeout = 10000;
+
+	/**
+	 * Maximum number of active transactions.
+	 */
+	private int maxActives = 50;
+
+	/**
+	 * Enable disk logging.
+	 */
+	private boolean enableLogging = true;
+
+	/**
+	 * Transaction manager's unique name. Defaults to the machine's IP address. If you
+	 * plan to run more than one transaction manager against one database you must set
+	 * this property to a unique value.
+	 */
+	private String transactionManagerUniqueName;
+
+	/**
+	 * Specify if sub-transactions should be joined when possible.
+	 */
+	private boolean serialJtaTransactions = true;
+
+	/**
+	 * Specify if a VM shutdown should trigger forced shutdown of the transaction core.
+	 */
+	private boolean forceShutdownOnVmExit;
+
+	/**
+	 * Transactions log file base name.
+	 */
+	private String logBaseName = "tmlog";
+
+	/**
+	 * Directory in which the log files should be stored. Defaults to the current working
+	 * directory.
+	 */
+	private String logBaseDir;
+
+	/**
+	 * Interval between checkpoints. A checkpoint reduces the log file size at the expense
+	 * of adding some overhead in the runtime.
+	 */
+	private long checkpointInterval = 500;
+
+	/**
+	 * Use different (and concurrent) threads for two-phase commit on the participating
+	 * resources.
+	 */
+	private boolean threadedTwoPhaseCommit;
 
 	/**
 	 * Specifies the transaction manager implementation that should be started. There is
@@ -42,7 +107,11 @@ public class AtomikosProperties {
 	 * @param service the service
 	 */
 	public void setService(String service) {
-		set("service", service);
+		this.service = service;
+	}
+
+	public String getService() {
+		return this.service;
 	}
 
 	/**
@@ -53,7 +122,11 @@ public class AtomikosProperties {
 	 * @param maxTimeout the max timeout
 	 */
 	public void setMaxTimeout(long maxTimeout) {
-		set("max_timeout", maxTimeout);
+		this.maxTimeout = maxTimeout;
+	}
+
+	public long getMaxTimeout() {
+		return this.maxTimeout;
 	}
 
 	/**
@@ -62,7 +135,11 @@ public class AtomikosProperties {
 	 * @param defaultJtaTimeout the default JTA timeout
 	 */
 	public void setDefaultJtaTimeout(long defaultJtaTimeout) {
-		set("default_jta_timeout", defaultJtaTimeout);
+		this.defaultJtaTimeout = defaultJtaTimeout;
+	}
+
+	public long getDefaultJtaTimeout() {
+		return this.defaultJtaTimeout;
 	}
 
 	/**
@@ -71,10 +148,14 @@ public class AtomikosProperties {
 	 * with error message "Max number of active transactions reached" if you call
 	 * {@code UserTransaction.begin()} while there are already n concurrent transactions
 	 * running, n being this value.
-	 * @param maxActivities the max activities
+	 * @param maxActives the max activities
 	 */
-	public void setMaxActives(int maxActivities) {
-		set("max_actives", maxActivities);
+	public void setMaxActives(int maxActives) {
+		this.maxActives = maxActives;
+	}
+
+	public int getMaxActives() {
+		return this.maxActives;
 	}
 
 	/**
@@ -85,7 +166,11 @@ public class AtomikosProperties {
 	 * @param enableLogging if logging is enabled
 	 */
 	public void setEnableLogging(boolean enableLogging) {
-		set("enable_logging", enableLogging);
+		this.enableLogging = enableLogging;
+	}
+
+	public boolean isEnableLogging() {
+		return this.enableLogging;
 	}
 
 	/**
@@ -93,14 +178,18 @@ public class AtomikosProperties {
 	 * address. If you plan to run more than one transaction manager against one database
 	 * you must set this property to a unique value or you might run into duplicate
 	 * transaction ID (XID) problems that can be quite subtle (example:
-	 * {@literal http://fogbugz.atomikos.com/default.asp?community.6.2225.7}). If multiple
-	 * instances need to use the same properties file then the easiest way to ensure
-	 * uniqueness for this property is by referencing a system property specified at VM
-	 * startup.
+	 * {@literal https://fogbugz.atomikos.com/default.asp?community.6.2225.7}). If
+	 * multiple instances need to use the same properties file then the easiest way to
+	 * ensure uniqueness for this property is by referencing a system property specified
+	 * at VM startup.
 	 * @param uniqueName the unique name
 	 */
 	public void setTransactionManagerUniqueName(String uniqueName) {
-		set("tm_unique_name", uniqueName);
+		this.transactionManagerUniqueName = uniqueName;
+	}
+
+	public String getTransactionManagerUniqueName() {
+		return this.transactionManagerUniqueName;
 	}
 
 	/**
@@ -112,7 +201,11 @@ public class AtomikosProperties {
 	 * @param serialJtaTransactions if serial JTA transaction are supported
 	 */
 	public void setSerialJtaTransactions(boolean serialJtaTransactions) {
-		set("serial_jta_transactions", serialJtaTransactions);
+		this.serialJtaTransactions = serialJtaTransactions;
+	}
+
+	public boolean isSerialJtaTransactions() {
+		return this.serialJtaTransactions;
 	}
 
 	/**
@@ -121,7 +214,11 @@ public class AtomikosProperties {
 	 * @param forceShutdownOnVmExit if VM shutdown should be forced
 	 */
 	public void setForceShutdownOnVmExit(boolean forceShutdownOnVmExit) {
-		set("force_shutdown_on_vm_exit", forceShutdownOnVmExit);
+		this.forceShutdownOnVmExit = forceShutdownOnVmExit;
+	}
+
+	public boolean isForceShutdownOnVmExit() {
+		return this.forceShutdownOnVmExit;
 	}
 
 	/**
@@ -132,7 +229,11 @@ public class AtomikosProperties {
 	 * @param logBaseName the log base name
 	 */
 	public void setLogBaseName(String logBaseName) {
-		set("log_base_name", logBaseName);
+		this.logBaseName = logBaseName;
+	}
+
+	public String getLogBaseName() {
+		return this.logBaseName;
 	}
 
 	/**
@@ -143,7 +244,11 @@ public class AtomikosProperties {
 	 * @param logBaseDir the log base dir
 	 */
 	public void setLogBaseDir(String logBaseDir) {
-		set("log_base_dir", logBaseDir);
+		this.logBaseDir = logBaseDir;
+	}
+
+	public String getLogBaseDir() {
+		return this.logBaseDir;
 	}
 
 	/**
@@ -152,49 +257,11 @@ public class AtomikosProperties {
 	 * @param checkpointInterval the checkpoint interval
 	 */
 	public void setCheckpointInterval(long checkpointInterval) {
-		set("checkpoint_interval", checkpointInterval);
+		this.checkpointInterval = checkpointInterval;
 	}
 
-	/**
-	 * Specifies the console log level. Defaults to {@link AtomikosLoggingLevel#WARN}.
-	 * @param consoleLogLevel the console log level
-	 */
-	public void setConsoleLogLevel(AtomikosLoggingLevel consoleLogLevel) {
-		set("console_log_level", consoleLogLevel);
-	}
-
-	/**
-	 * Specifies the directory in which to store the debug log files. Defaults to the
-	 * current working directory.
-	 * @param outputDir the output dir
-	 */
-	public void setOutputDir(String outputDir) {
-		set("output_dir", outputDir);
-	}
-
-	/**
-	 * Specifies the debug logs file name. Defaults to {@literal tm.out}.
-	 * @param consoleFileName the console file name
-	 */
-	public void setConsoleFileName(String consoleFileName) {
-		set("console_file_name", consoleFileName);
-	}
-
-	/**
-	 * Specifies how many debug logs files can be created. Defaults to {@literal 1}.
-	 * @param consoleFileCount the console file count
-	 */
-	public void setConsoleFileCount(int consoleFileCount) {
-		set("console_file_count", consoleFileCount);
-	}
-
-	/**
-	 * Specifies how many bytes can be stored at most in debug logs files. Defaults to
-	 * {@literal -1}. Negative values means unlimited.
-	 * @param consoleFileLimit the console file limit
-	 */
-	public void setConsoleFileLimit(int consoleFileLimit) {
-		set("console_file_limit", consoleFileLimit);
+	public long getCheckpointInterval() {
+		return this.checkpointInterval;
 	}
 
 	/**
@@ -207,20 +274,11 @@ public class AtomikosProperties {
 	 * @param threadedTwoPhaseCommit if threaded two phase commits should be used
 	 */
 	public void setThreadedTwoPhaseCommit(boolean threadedTwoPhaseCommit) {
-		set("threaded_2pc", threadedTwoPhaseCommit);
+		this.threadedTwoPhaseCommit = threadedTwoPhaseCommit;
 	}
 
-	private void set(String key, Object value) {
-		set("com.atomikos.icatch.", key, value);
-	}
-
-	private void set(String keyPrefix, String key, Object value) {
-		if (value != null) {
-			this.values.put(keyPrefix + key, value.toString());
-		}
-		else {
-			this.values.remove(keyPrefix + key);
-		}
+	public boolean isThreadedTwoPhaseCommit() {
+		return this.threadedTwoPhaseCommit;
 	}
 
 	/**
@@ -230,8 +288,26 @@ public class AtomikosProperties {
 	 */
 	public Properties asProperties() {
 		Properties properties = new Properties();
-		properties.putAll(this.values);
+		set(properties, "service", getService());
+		set(properties, "max_timeout", getMaxTimeout());
+		set(properties, "default_jta_timeout", getDefaultJtaTimeout());
+		set(properties, "max_actives", getMaxActives());
+		set(properties, "enable_logging", isEnableLogging());
+		set(properties, "tm_unique_name", getTransactionManagerUniqueName());
+		set(properties, "serial_jta_transactions", isSerialJtaTransactions());
+		set(properties, "force_shutdown_on_vm_exit", isForceShutdownOnVmExit());
+		set(properties, "log_base_name", getLogBaseName());
+		set(properties, "log_base_dir", getLogBaseDir());
+		set(properties, "checkpoint_interval", getCheckpointInterval());
+		set(properties, "threaded_2pc", isThreadedTwoPhaseCommit());
 		return properties;
+	}
+
+	private void set(Properties properties, String key, Object value) {
+		String id = "com.atomikos.icatch." + key;
+		if (value != null && !properties.containsKey(id)) {
+			properties.setProperty(id, value.toString());
+		}
 	}
 
 }

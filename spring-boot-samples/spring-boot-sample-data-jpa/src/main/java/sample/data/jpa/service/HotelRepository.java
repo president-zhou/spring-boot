@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,11 +32,12 @@ interface HotelRepository extends Repository<Hotel, Long> {
 
 	Hotel findByCityAndName(City city, String name);
 
-	@Query("select new sample.data.jpa.domain.HotelSummary(h.city, h.name, avg(r.rating)) "
+	@Query("select h.city as city, h.name as name, avg(r.rating) as averageRating "
 			+ "from Hotel h left outer join h.reviews r where h.city = ?1 group by h")
 	Page<HotelSummary> findByCity(City city, Pageable pageable);
 
-	@Query("select new sample.data.jpa.domain.RatingCount(r.rating, count(r)) "
+	@Query("select r.rating as rating, count(r) as count "
 			+ "from Review r where r.hotel = ?1 group by r.rating order by r.rating DESC")
 	List<RatingCount> findRatingCounts(Hotel hotel);
+
 }

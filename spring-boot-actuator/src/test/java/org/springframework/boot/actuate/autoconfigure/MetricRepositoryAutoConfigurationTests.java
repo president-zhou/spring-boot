@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,10 +33,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -58,42 +55,36 @@ public class MetricRepositoryAutoConfigurationTests {
 
 	@Test
 	public void createServices() throws Exception {
-		this.context = new AnnotationConfigApplicationContext(
-				MetricRepositoryAutoConfiguration.class);
+		this.context = new AnnotationConfigApplicationContext(MetricRepositoryAutoConfiguration.class);
 		GaugeService gaugeService = this.context.getBean(BufferGaugeService.class);
-		assertNotNull(gaugeService);
-		assertNotNull(this.context.getBean(BufferCounterService.class));
-		assertNotNull(this.context.getBean(PrefixMetricReader.class));
+		assertThat(gaugeService).isNotNull();
+		assertThat(this.context.getBean(BufferCounterService.class)).isNotNull();
+		assertThat(this.context.getBean(PrefixMetricReader.class)).isNotNull();
 		gaugeService.submit("foo", 2.7);
-		assertEquals(2.7,
-				this.context.getBean(MetricReader.class).findOne("gauge.foo").getValue());
+		MetricReader bean = this.context.getBean(MetricReader.class);
+		assertThat(bean.findOne("gauge.foo").getValue()).isEqualTo(2.7);
 	}
 
 	@Test
 	public void dropwizardInstalledIfPresent() {
-		this.context = new AnnotationConfigApplicationContext(
-				MetricsDropwizardAutoConfiguration.class,
+		this.context = new AnnotationConfigApplicationContext(MetricsDropwizardAutoConfiguration.class,
 				MetricRepositoryAutoConfiguration.class, AopAutoConfiguration.class);
 		GaugeService gaugeService = this.context.getBean(GaugeService.class);
-		assertNotNull(gaugeService);
+		assertThat(gaugeService).isNotNull();
 		gaugeService.submit("foo", 2.7);
-		DropwizardMetricServices exporter = this.context
-				.getBean(DropwizardMetricServices.class);
-		assertEquals(gaugeService, exporter);
+		DropwizardMetricServices exporter = this.context.getBean(DropwizardMetricServices.class);
+		assertThat(exporter).isEqualTo(gaugeService);
 		MetricRegistry registry = this.context.getBean(MetricRegistry.class);
 		@SuppressWarnings("unchecked")
 		Gauge<Double> gauge = (Gauge<Double>) registry.getMetrics().get("gauge.foo");
-		assertEquals(new Double(2.7), gauge.getValue());
+		assertThat(gauge.getValue()).isEqualTo(new Double(2.7));
 	}
 
 	@Test
 	public void skipsIfBeansExist() throws Exception {
-		this.context = new AnnotationConfigApplicationContext(Config.class,
-				MetricRepositoryAutoConfiguration.class);
-		assertThat(this.context.getBeansOfType(BufferGaugeService.class).size(),
-				equalTo(0));
-		assertThat(this.context.getBeansOfType(BufferCounterService.class).size(),
-				equalTo(0));
+		this.context = new AnnotationConfigApplicationContext(Config.class, MetricRepositoryAutoConfiguration.class);
+		assertThat(this.context.getBeansOfType(BufferGaugeService.class)).isEmpty();
+		assertThat(this.context.getBeansOfType(BufferCounterService.class)).isEmpty();
 	}
 
 	@Configuration

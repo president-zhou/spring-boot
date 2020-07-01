@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,9 @@
 
 package org.springframework.boot.autoconfigure.condition;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.context.annotation.Condition;
 
 /**
@@ -25,16 +28,26 @@ import org.springframework.context.annotation.Condition;
  * <pre class="code">
  * static class OnJndiAndProperty extends AllNestedConditions {
  *
+ *    OnJndiAndProperty() {
+ *        super(ConfigurationPhase.PARSE_CONFIGURATION);
+ *    }
+ *
  *    &#064;ConditionalOnJndi()
  *    static class OnJndi {
  *    }
-
+ *
  *    &#064;ConditionalOnProperty("something")
  *    static class OnProperty {
  *    }
  *
  * }
  * </pre>
+ * <p>
+ * The
+ * {@link org.springframework.context.annotation.ConfigurationCondition.ConfigurationPhase
+ * ConfigurationPhase} should be specified according to the conditions that are defined.
+ * In the example above, all conditions are static and can be evaluated early so
+ * {@code PARSE_CONFIGURATION} is a right fit.
  *
  * @author Phillip Webb
  * @since 1.3.0
@@ -47,11 +60,18 @@ public abstract class AllNestedConditions extends AbstractNestedCondition {
 
 	@Override
 	protected ConditionOutcome getFinalMatchOutcome(MemberMatchOutcomes memberOutcomes) {
-		return new ConditionOutcome(
-				memberOutcomes.getMatches().size() == memberOutcomes.getAll().size(),
-				"nested all match resulted in " + memberOutcomes.getMatches()
-						+ " matches and " + memberOutcomes.getNonMatches()
-						+ " non matches");
+		boolean match = hasSameSize(memberOutcomes.getMatches(), memberOutcomes.getAll());
+		List<ConditionMessage> messages = new ArrayList<ConditionMessage>();
+		messages.add(ConditionMessage.forCondition("AllNestedConditions").because(
+				memberOutcomes.getMatches().size() + " matched " + memberOutcomes.getNonMatches().size() + " did not"));
+		for (ConditionOutcome outcome : memberOutcomes.getAll()) {
+			messages.add(outcome.getConditionMessage());
+		}
+		return new ConditionOutcome(match, ConditionMessage.of(messages));
+	}
+
+	private boolean hasSameSize(List<?> list1, List<?> list2) {
+		return list1.size() == list2.size();
 	}
 
 }

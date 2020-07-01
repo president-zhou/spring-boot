@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,8 +24,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link DefaultSourceFolderUrlFilter}.
@@ -72,18 +71,14 @@ public class DefaultSourceFolderUrlFilterTests {
 
 	@Test
 	public void skippedProjects() throws Exception {
-		String sourceFolder = "/Users/me/code/spring-boot-samples/"
-				+ "spring-boot-sample-devtools";
-		URL jarUrl = new URL("jar:file:/Users/me/tmp/"
-				+ "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar!/");
-		assertThat(this.filter.isMatch(sourceFolder, jarUrl), equalTo(true));
-		URL nestedJarUrl = new URL("jar:file:/Users/me/tmp/"
-				+ "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar!/"
+		String sourceFolder = "/Users/me/code/spring-boot-samples/" + "spring-boot-sample-devtools";
+		URL jarUrl = new URL("jar:file:/Users/me/tmp/" + "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar!/");
+		assertThat(this.filter.isMatch(sourceFolder, jarUrl)).isTrue();
+		URL nestedJarUrl = new URL("jar:file:/Users/me/tmp/" + "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar!/"
 				+ "lib/spring-boot-1.3.0.BUILD-SNAPSHOT.jar!/");
-		assertThat(this.filter.isMatch(sourceFolder, nestedJarUrl), equalTo(false));
-		URL fileUrl = new URL("file:/Users/me/tmp/"
-				+ "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar");
-		assertThat(this.filter.isMatch(sourceFolder, fileUrl), equalTo(true));
+		assertThat(this.filter.isMatch(sourceFolder, nestedJarUrl)).isFalse();
+		URL fileUrl = new URL("file:/Users/me/tmp/" + "spring-boot-sample-devtools-1.3.0.BUILD-SNAPSHOT.jar");
+		assertThat(this.filter.isMatch(sourceFolder, fileUrl)).isTrue();
 	}
 
 	private void doTest(String sourcePostfix) throws MalformedURLException {
@@ -93,13 +88,12 @@ public class DefaultSourceFolderUrlFilterTests {
 		doTest(sourcePostfix, "my-module.other", false);
 	}
 
-	private void doTest(String sourcePostfix, String moduleRoot, boolean expected)
-			throws MalformedURLException {
+	private void doTest(String sourcePostfix, String moduleRoot, boolean expected) throws MalformedURLException {
 		String sourceFolder = SOURCE_ROOT + sourcePostfix;
 		for (String postfix : COMMON_POSTFIXES) {
 			for (URL url : getUrls(moduleRoot + postfix)) {
 				boolean match = this.filter.isMatch(sourceFolder, url);
-				assertThat(url + " against " + sourceFolder, match, equalTo(expected));
+				assertThat(match).as(url + " against " + sourceFolder).isEqualTo(expected);
 			}
 		}
 	}
@@ -109,10 +103,8 @@ public class DefaultSourceFolderUrlFilterTests {
 		urls.add(new URL("file:/some/path/" + name));
 		urls.add(new URL("file:/some/path/" + name + "!/"));
 		for (String postfix : COMMON_POSTFIXES) {
-			urls.add(new URL(
-					"jar:file:/some/path/lib-module" + postfix + "!/lib/" + name));
-			urls.add(new URL(
-					"jar:file:/some/path/lib-module" + postfix + "!/lib/" + name + "!/"));
+			urls.add(new URL("jar:file:/some/path/lib-module" + postfix + "!/lib/" + name));
+			urls.add(new URL("jar:file:/some/path/lib-module" + postfix + "!/lib/" + name + "!/"));
 		}
 		return urls;
 	}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,13 +19,13 @@ package org.springframework.boot.configurationprocessor.metadata;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
-
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.util.ObjectUtils;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Configuration meta-data.
@@ -37,20 +37,25 @@ import org.springframework.util.ObjectUtils;
  */
 public class ConfigurationMetadata {
 
-	private static final List<Character> SEPARATORS = Arrays.asList('-', '_');
+	private static final Set<Character> SEPARATORS;
 
-	private final MultiValueMap<String, ItemMetadata> items;
+	static {
+		List<Character> chars = Arrays.asList('-', '_');
+		SEPARATORS = Collections.unmodifiableSet(new HashSet<Character>(chars));
+	}
 
-	private final MultiValueMap<String, ItemHint> hints;
+	private final Map<String, List<ItemMetadata>> items;
+
+	private final Map<String, List<ItemHint>> hints;
 
 	public ConfigurationMetadata() {
-		this.items = new LinkedMultiValueMap<String, ItemMetadata>();
-		this.hints = new LinkedMultiValueMap<String, ItemHint>();
+		this.items = new LinkedHashMap<String, List<ItemMetadata>>();
+		this.hints = new LinkedHashMap<String, List<ItemHint>>();
 	}
 
 	public ConfigurationMetadata(ConfigurationMetadata metadata) {
-		this.items = new LinkedMultiValueMap<String, ItemMetadata>(metadata.items);
-		this.hints = new LinkedMultiValueMap<String, ItemHint>(metadata.hints);
+		this.items = new LinkedHashMap<String, List<ItemMetadata>>(metadata.items);
+		this.hints = new LinkedHashMap<String, List<ItemHint>>(metadata.hints);
 	}
 
 	/**
@@ -58,7 +63,7 @@ public class ConfigurationMetadata {
 	 * @param itemMetadata the meta-data to add
 	 */
 	public void add(ItemMetadata itemMetadata) {
-		this.items.add(itemMetadata.getName(), itemMetadata);
+		add(this.items, itemMetadata.getName(), itemMetadata);
 	}
 
 	/**
@@ -66,7 +71,7 @@ public class ConfigurationMetadata {
 	 * @param itemHint the item hint to add
 	 */
 	public void add(ItemHint itemHint) {
-		this.hints.add(itemHint.getName(), itemHint);
+		add(this.hints, itemHint.getName(), itemHint);
 	}
 
 	/**
@@ -120,17 +125,29 @@ public class ConfigurationMetadata {
 					if (deprecation.getReplacement() != null) {
 						matchingDeprecation.setReplacement(deprecation.getReplacement());
 					}
+					if (deprecation.getLevel() != null) {
+						matchingDeprecation.setLevel(deprecation.getLevel());
+					}
 				}
 			}
 		}
 		else {
-			this.items.add(metadata.getName(), metadata);
+			add(this.items, metadata.getName(), metadata);
 		}
 	}
 
+	private <K, V> void add(Map<K, List<V>> map, K key, V value) {
+		List<V> values = map.get(key);
+		if (values == null) {
+			values = new ArrayList<V>();
+			map.put(key, values);
+		}
+		values.add(value);
+	}
+
 	private ItemMetadata findMatchingItemMetadata(ItemMetadata metadata) {
-		List<ItemMetadata> candidates = this.items.get(metadata.getName());
-		if (CollectionUtils.isEmpty(candidates)) {
+		List<ItemMetadata> candidates = getCandidates(metadata.getName());
+		if (candidates.isEmpty()) {
 			return null;
 		}
 		ListIterator<ItemMetadata> it = candidates.listIterator();
@@ -143,43 +160,52 @@ public class ConfigurationMetadata {
 			return candidates.get(0);
 		}
 		for (ItemMetadata candidate : candidates) {
-			if (ObjectUtils.nullSafeEquals(candidate.getSourceType(),
-					metadata.getSourceType())) {
+			if (nullSafeEquals(candidate.getSourceType(), metadata.getSourceType())) {
 				return candidate;
 			}
 		}
 		return null;
 	}
 
+	private List<ItemMetadata> getCandidates(String name) {
+		List<ItemMetadata> candidates = this.items.get(name);
+		return (candidates != null) ? new ArrayList<ItemMetadata>(candidates) : new ArrayList<ItemMetadata>();
+	}
+
+	private boolean nullSafeEquals(Object o1, Object o2) {
+		if (o1 == o2) {
+			return true;
+		}
+		return o1 != null && o2 != null && o1.equals(o2);
+	}
+
 	public static String nestedPrefix(String prefix, String name) {
-		String nestedPrefix = (prefix == null ? "" : prefix);
+		String nestedPrefix = (prefix != null) ? prefix : "";
 		String dashedName = toDashedCase(name);
 		nestedPrefix += ("".equals(nestedPrefix) ? dashedName : "." + dashedName);
 		return nestedPrefix;
 	}
 
 	static String toDashedCase(String name) {
-		StringBuilder sb = new StringBuilder();
+		StringBuilder dashed = new StringBuilder();
 		Character previous = null;
 		for (char current : name.toCharArray()) {
 			if (SEPARATORS.contains(current)) {
-				sb.append("-");
+				dashed.append("-");
 			}
-			else if (Character.isUpperCase(current) && previous != null
-					&& !SEPARATORS.contains(previous)) {
-				sb.append("-").append(current);
+			else if (Character.isUpperCase(current) && previous != null && !SEPARATORS.contains(previous)) {
+				dashed.append("-").append(current);
 			}
 			else {
-				sb.append(current);
+				dashed.append(current);
 			}
 			previous = current;
 
 		}
-		return sb.toString().toLowerCase();
+		return dashed.toString().toLowerCase(Locale.ENGLISH);
 	}
 
-	private static <T extends Comparable<T>> List<T> flattenValues(
-			MultiValueMap<?, T> map) {
+	private static <T extends Comparable<T>> List<T> flattenValues(Map<?, List<T>> map) {
 		List<T> content = new ArrayList<T>();
 		for (List<T> values : map.values()) {
 			content.addAll(values);

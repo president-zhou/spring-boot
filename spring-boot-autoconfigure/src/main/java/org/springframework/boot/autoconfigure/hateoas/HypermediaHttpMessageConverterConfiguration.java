@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,9 +16,9 @@
 
 package org.springframework.boot.autoconfigure.hateoas;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.annotation.PostConstruct;
 
@@ -29,9 +29,10 @@ import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.hateoas.MediaTypes;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.mvc.TypeConstrainedMappingJackson2HttpMessageConverter;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.AbstractHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
@@ -40,11 +41,14 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * enabled.
  *
  * @author Andy Wilkinson
+ * @since 1.3.0
  */
+@Configuration
 public class HypermediaHttpMessageConverterConfiguration {
 
 	@Bean
-	@ConditionalOnProperty(prefix = "spring.hateoas", name = "use-hal-as-default-json-media-type", matchIfMissing = true)
+	@ConditionalOnProperty(prefix = "spring.hateoas", name = "use-hal-as-default-json-media-type",
+			matchIfMissing = true)
 	public static HalMessageConverterSupportedMediaTypesCustomizer halMessageConverterSupportedMediaTypeCustomizer() {
 		return new HalMessageConverterSupportedMediaTypesCustomizer();
 	}
@@ -56,30 +60,33 @@ public class HypermediaHttpMessageConverterConfiguration {
 	 * {@code Jackson2ModuleRegisteringBeanPostProcessor} has registered the converter and
 	 * it is unordered.
 	 */
-	private static class HalMessageConverterSupportedMediaTypesCustomizer
-			implements BeanFactoryAware {
+	private static class HalMessageConverterSupportedMediaTypesCustomizer implements BeanFactoryAware {
 
 		private volatile BeanFactory beanFactory;
 
 		@PostConstruct
-		public void customizedSupportedMediaTypes() {
+		public void configureHttpMessageConverters() {
 			if (this.beanFactory instanceof ListableBeanFactory) {
-				Map<String, RequestMappingHandlerAdapter> handlerAdapters = ((ListableBeanFactory) this.beanFactory)
-						.getBeansOfType(RequestMappingHandlerAdapter.class);
-				for (Entry<String, RequestMappingHandlerAdapter> entry : handlerAdapters
-						.entrySet()) {
-					RequestMappingHandlerAdapter handlerAdapter = entry.getValue();
-					for (HttpMessageConverter<?> converter : handlerAdapter
-							.getMessageConverters()) {
-						if (converter instanceof TypeConstrainedMappingJackson2HttpMessageConverter) {
-							((TypeConstrainedMappingJackson2HttpMessageConverter) converter)
-									.setSupportedMediaTypes(
-											Arrays.asList(MediaTypes.HAL_JSON,
-													MediaType.APPLICATION_JSON));
-						}
-					}
+				configureHttpMessageConverters(((ListableBeanFactory) this.beanFactory)
+						.getBeansOfType(RequestMappingHandlerAdapter.class).values());
+			}
+		}
 
+		private void configureHttpMessageConverters(Collection<RequestMappingHandlerAdapter> handlerAdapters) {
+			for (RequestMappingHandlerAdapter handlerAdapter : handlerAdapters) {
+				for (HttpMessageConverter<?> messageConverter : handlerAdapter.getMessageConverters()) {
+					configureHttpMessageConverter(messageConverter);
 				}
+			}
+		}
+
+		private void configureHttpMessageConverter(HttpMessageConverter<?> converter) {
+			if (converter instanceof TypeConstrainedMappingJackson2HttpMessageConverter) {
+				List<MediaType> supportedMediaTypes = new ArrayList<MediaType>(converter.getSupportedMediaTypes());
+				if (!supportedMediaTypes.contains(MediaType.APPLICATION_JSON)) {
+					supportedMediaTypes.add(MediaType.APPLICATION_JSON);
+				}
+				((AbstractHttpMessageConverter<?>) converter).setSupportedMediaTypes(supportedMediaTypes);
 			}
 		}
 

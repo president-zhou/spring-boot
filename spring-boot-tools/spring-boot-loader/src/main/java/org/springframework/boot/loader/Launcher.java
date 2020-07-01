@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,14 +17,12 @@
 package org.springframework.boot.loader;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 import org.springframework.boot.loader.archive.Archive;
 import org.springframework.boot.loader.archive.ExplodedArchive;
@@ -37,33 +35,20 @@ import org.springframework.boot.loader.jar.JarFile;
  *
  * @author Phillip Webb
  * @author Dave Syer
+ * @since 1.0.0
  */
 public abstract class Launcher {
-
-	protected Logger logger = Logger.getLogger(Launcher.class.getName());
-
-	/**
-	 * The main runner class. This must be loaded by the created ClassLoader so cannot be
-	 * directly referenced.
-	 */
-	private static final String RUNNER_CLASS = Launcher.class.getPackage().getName()
-			+ ".MainMethodRunner";
 
 	/**
 	 * Launch the application. This method is the initial entry point that should be
 	 * called by a subclass {@code public static void main(String[] args)} method.
 	 * @param args the incoming arguments
+	 * @throws Exception if the application fails to launch
 	 */
-	protected void launch(String[] args) {
-		try {
-			JarFile.registerUrlProtocolHandler();
-			ClassLoader classLoader = createClassLoader(getClassPathArchives());
-			launch(args, getMainClass(), classLoader);
-		}
-		catch (Exception ex) {
-			ex.printStackTrace();
-			System.exit(1);
-		}
+	protected void launch(String[] args) throws Exception {
+		JarFile.registerUrlProtocolHandler();
+		ClassLoader classLoader = createClassLoader(getClassPathArchives());
+		launch(args, getMainClass(), classLoader);
 	}
 
 	/**
@@ -97,11 +82,9 @@ public abstract class Launcher {
 	 * @param classLoader the classloader
 	 * @throws Exception if the launch fails
 	 */
-	protected void launch(String[] args, String mainClass, ClassLoader classLoader)
-			throws Exception {
-		Runnable runner = createMainMethodRunner(mainClass, args, classLoader);
+	protected void launch(String[] args, String mainClass, ClassLoader classLoader) throws Exception {
 		Thread.currentThread().setContextClassLoader(classLoader);
-		runner.run();
+		createMainMethodRunner(mainClass, args, classLoader).run();
 	}
 
 	/**
@@ -109,15 +92,10 @@ public abstract class Launcher {
 	 * @param mainClass the main class
 	 * @param args the incoming arguments
 	 * @param classLoader the classloader
-	 * @return a runnable used to start the application
-	 * @throws Exception if the main method runner cannot be created
+	 * @return the main method runner
 	 */
-	protected Runnable createMainMethodRunner(String mainClass, String[] args,
-			ClassLoader classLoader) throws Exception {
-		Class<?> runnerClass = classLoader.loadClass(RUNNER_CLASS);
-		Constructor<?> constructor = runnerClass.getConstructor(String.class,
-				String[].class);
-		return (Runnable) constructor.newInstance(mainClass, args);
+	protected MainMethodRunner createMainMethodRunner(String mainClass, String[] args, ClassLoader classLoader) {
+		return new MainMethodRunner(mainClass, args);
 	}
 
 	/**
@@ -137,18 +115,16 @@ public abstract class Launcher {
 	protected final Archive createArchive() throws Exception {
 		ProtectionDomain protectionDomain = getClass().getProtectionDomain();
 		CodeSource codeSource = protectionDomain.getCodeSource();
-		URI location = (codeSource == null ? null : codeSource.getLocation().toURI());
-		String path = (location == null ? null : location.getSchemeSpecificPart());
+		URI location = (codeSource != null) ? codeSource.getLocation().toURI() : null;
+		String path = (location != null) ? location.getSchemeSpecificPart() : null;
 		if (path == null) {
 			throw new IllegalStateException("Unable to determine code source archive");
 		}
 		File root = new File(path);
 		if (!root.exists()) {
-			throw new IllegalStateException(
-					"Unable to determine code source archive from " + root);
+			throw new IllegalStateException("Unable to determine code source archive from " + root);
 		}
-		return (root.isDirectory() ? new ExplodedArchive(root)
-				: new JarFileArchive(root));
+		return (root.isDirectory() ? new ExplodedArchive(root) : new JarFileArchive(root));
 	}
 
 }

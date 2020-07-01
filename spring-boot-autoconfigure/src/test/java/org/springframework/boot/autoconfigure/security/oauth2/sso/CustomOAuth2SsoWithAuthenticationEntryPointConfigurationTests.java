@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,17 +26,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.security.oauth2.OAuth2AutoConfiguration;
 import org.springframework.boot.autoconfigure.security.oauth2.client.EnableOAuth2Sso;
-import org.springframework.boot.autoconfigure.security.oauth2.sso.CustomOAuth2SsoWithAuthenticationEntryPointConfigurationTests.TestConfiguration;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,14 +53,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * @author Dave Syer
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(TestConfiguration.class)
-@WebAppConfiguration
-@TestPropertySource(properties = { "security.oauth2.client.clientId=client",
-		"security.oauth2.client.clientSecret=secret",
-		"security.oauth2.client.authorizationUri=http://example.com/oauth/authorize",
-		"security.oauth2.client.tokenUri=http://example.com/oauth/token",
-		"security.oauth2.resource.jwt.keyValue=SSSSHHH" })
+@RunWith(SpringRunner.class)
+@DirtiesContext
+@SpringBootTest
+@TestPropertySource(
+		properties = { "security.oauth2.client.clientId=client", "security.oauth2.client.clientSecret=secret",
+				"security.oauth2.client.authorizationUri=https://example.com/oauth/authorize",
+				"security.oauth2.client.tokenUri=https://example.com/oauth/token",
+				"security.oauth2.resource.jwt.keyValue=SSSSHHH" })
 public class CustomOAuth2SsoWithAuthenticationEntryPointConfigurationTests {
 
 	@Autowired
@@ -75,8 +74,7 @@ public class CustomOAuth2SsoWithAuthenticationEntryPointConfigurationTests {
 
 	@Before
 	public void init() {
-		this.mvc = MockMvcBuilders.webAppContextSetup(this.context)
-				.addFilters(this.filter).build();
+		this.mvc = MockMvcBuilders.webAppContextSetup(this.context).addFilters(this.filter).build();
 	}
 
 	@Test
@@ -92,8 +90,7 @@ public class CustomOAuth2SsoWithAuthenticationEntryPointConfigurationTests {
 
 	@Test
 	public void uiTestPageIsAccessible() throws Exception {
-		this.mvc.perform(get("/ui/test")).andExpect(status().isOk())
-				.andExpect(content().string("test"));
+		this.mvc.perform(get("/ui/test")).andExpect(status().isOk()).andExpect(content().string("test"));
 	}
 
 	@Configuration
@@ -104,10 +101,9 @@ public class CustomOAuth2SsoWithAuthenticationEntryPointConfigurationTests {
 
 		@Override
 		public void configure(HttpSecurity http) throws Exception {
-			http.antMatcher("/ui/**").authorizeRequests().antMatchers("/ui/test")
-					.permitAll().anyRequest().authenticated().and().exceptionHandling()
-					.authenticationEntryPoint(
-							new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+			http.antMatcher("/ui/**").authorizeRequests().antMatchers("/ui/test").permitAll().anyRequest()
+					.authenticated().and().exceptionHandling()
+					.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
 		}
 
 		@RestController

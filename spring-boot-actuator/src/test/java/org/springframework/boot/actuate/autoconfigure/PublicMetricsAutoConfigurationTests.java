@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,7 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 import com.zaxxer.hikari.HikariDataSource;
-import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.junit.After;
 import org.junit.Test;
 
@@ -59,10 +59,7 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.SocketUtils;
 
-import static org.hamcrest.Matchers.hasKey;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -88,31 +85,27 @@ public class PublicMetricsAutoConfigurationTests {
 	@Test
 	public void systemPublicMetrics() throws Exception {
 		load();
-		assertEquals(1, this.context.getBeansOfType(SystemPublicMetrics.class).size());
+		assertThat(this.context.getBeansOfType(SystemPublicMetrics.class)).hasSize(1);
 	}
 
 	@Test
 	public void metricReaderPublicMetrics() throws Exception {
 		load();
-		assertEquals(1,
-				this.context.getBeansOfType(MetricReaderPublicMetrics.class).size());
+		assertThat(this.context.getBeansOfType(MetricReaderPublicMetrics.class)).hasSize(2);
 	}
 
 	@Test
 	public void richGaugePublicMetrics() {
-		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
-				RichGaugeReaderConfig.class, MetricRepositoryAutoConfiguration.class,
-				PublicMetricsAutoConfiguration.class);
+		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(RichGaugeReaderConfig.class,
+				MetricRepositoryAutoConfiguration.class, PublicMetricsAutoConfiguration.class);
 		RichGaugeReader richGaugeReader = context.getBean(RichGaugeReader.class);
-		assertNotNull(richGaugeReader);
-		given(richGaugeReader.findAll())
-				.willReturn(Collections.singletonList(new RichGauge("bar", 3.7d)));
-		RichGaugeReaderPublicMetrics publicMetrics = context
-				.getBean(RichGaugeReaderPublicMetrics.class);
-		assertNotNull(publicMetrics);
+		assertThat(richGaugeReader).isNotNull();
+		given(richGaugeReader.findAll()).willReturn(Collections.singletonList(new RichGauge("bar", 3.7d)));
+		RichGaugeReaderPublicMetrics publicMetrics = context.getBean(RichGaugeReaderPublicMetrics.class);
+		assertThat(publicMetrics).isNotNull();
 		Collection<Metric<?>> metrics = publicMetrics.metrics();
-		assertNotNull(metrics);
-		assertEquals(metrics.size(), 6);
+		assertThat(metrics).isNotNull();
+		assertThat(6).isEqualTo(metrics.size());
 		assertHasMetric(metrics, new Metric<Double>("bar.val", 3.7d));
 		assertHasMetric(metrics, new Metric<Double>("bar.avg", 3.7d));
 		assertHasMetric(metrics, new Metric<Double>("bar.min", 3.7d));
@@ -125,8 +118,7 @@ public class PublicMetricsAutoConfigurationTests {
 	@Test
 	public void noDataSource() {
 		load();
-		assertEquals(0,
-				this.context.getBeansOfType(DataSourcePublicMetrics.class).size());
+		assertThat(this.context.getBeansOfType(DataSourcePublicMetrics.class)).isEmpty();
 	}
 
 	@Test
@@ -142,24 +134,21 @@ public class PublicMetricsAutoConfigurationTests {
 		load(MultipleDataSourcesConfig.class);
 		PublicMetrics bean = this.context.getBean(DataSourcePublicMetrics.class);
 		Collection<Metric<?>> metrics = bean.metrics();
-		assertMetrics(metrics, "datasource.tomcat.active", "datasource.tomcat.usage",
-				"datasource.commonsDbcp.active", "datasource.commonsDbcp.usage");
+		assertMetrics(metrics, "datasource.tomcat.active", "datasource.tomcat.usage", "datasource.commonsDbcp.active",
+				"datasource.commonsDbcp.usage");
 
 		// Hikari won't work unless a first connection has been retrieved
-		JdbcTemplate jdbcTemplate = new JdbcTemplate(
-				this.context.getBean("hikariDS", DataSource.class));
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(this.context.getBean("hikariDS", DataSource.class));
 		jdbcTemplate.execute(new ConnectionCallback<Void>() {
 			@Override
-			public Void doInConnection(Connection connection)
-					throws SQLException, DataAccessException {
+			public Void doInConnection(Connection connection) throws SQLException, DataAccessException {
 				return null;
 			}
 		});
 
 		Collection<Metric<?>> anotherMetrics = bean.metrics();
-		assertMetrics(anotherMetrics, "datasource.tomcat.active",
-				"datasource.tomcat.usage", "datasource.hikariDS.active",
-				"datasource.hikariDS.usage", "datasource.commonsDbcp.active",
+		assertMetrics(anotherMetrics, "datasource.tomcat.active", "datasource.tomcat.usage",
+				"datasource.hikariDS.active", "datasource.hikariDS.usage", "datasource.commonsDbcp.active",
 				"datasource.commonsDbcp.usage");
 	}
 
@@ -168,8 +157,8 @@ public class PublicMetricsAutoConfigurationTests {
 		load(MultipleDataSourcesWithPrimaryConfig.class);
 		PublicMetrics bean = this.context.getBean(DataSourcePublicMetrics.class);
 		Collection<Metric<?>> metrics = bean.metrics();
-		assertMetrics(metrics, "datasource.primary.active", "datasource.primary.usage",
-				"datasource.commonsDbcp.active", "datasource.commonsDbcp.usage");
+		assertMetrics(metrics, "datasource.primary.active", "datasource.primary.usage", "datasource.commonsDbcp.active",
+				"datasource.commonsDbcp.usage");
 	}
 
 	@Test
@@ -177,30 +166,28 @@ public class PublicMetricsAutoConfigurationTests {
 		load(MultipleDataSourcesWithCustomPrimaryConfig.class);
 		PublicMetrics bean = this.context.getBean(DataSourcePublicMetrics.class);
 		Collection<Metric<?>> metrics = bean.metrics();
-		assertMetrics(metrics, "datasource.primary.active", "datasource.primary.usage",
-				"datasource.dataSource.active", "datasource.dataSource.usage");
+		assertMetrics(metrics, "datasource.primary.active", "datasource.primary.usage", "datasource.dataSource.active",
+				"datasource.dataSource.usage");
 	}
 
 	@Test
 	public void customPrefix() {
-		load(MultipleDataSourcesWithPrimaryConfig.class,
-				CustomDataSourcePublicMetrics.class);
+		load(MultipleDataSourcesWithPrimaryConfig.class, CustomDataSourcePublicMetrics.class);
 		PublicMetrics bean = this.context.getBean(DataSourcePublicMetrics.class);
 		Collection<Metric<?>> metrics = bean.metrics();
-		assertMetrics(metrics, "ds.first.active", "ds.first.usage", "ds.second.active",
-				"ds.second.usage");
+		assertMetrics(metrics, "ds.first.active", "ds.first.usage", "ds.second.active", "ds.second.usage");
 	}
 
 	@Test
 	public void tomcatMetrics() throws Exception {
 		loadWeb(TomcatConfiguration.class);
-		assertEquals(1, this.context.getBeansOfType(TomcatPublicMetrics.class).size());
+		assertThat(this.context.getBeansOfType(TomcatPublicMetrics.class)).hasSize(1);
 	}
 
 	@Test
 	public void noCacheMetrics() {
 		load();
-		assertEquals(0, this.context.getBeansOfType(CachePublicMetrics.class).size());
+		assertThat(this.context.getBeansOfType(CachePublicMetrics.class)).isEmpty();
 	}
 
 	@Test
@@ -216,14 +203,13 @@ public class PublicMetricsAutoConfigurationTests {
 		load(MultipleCacheConfiguration.class);
 		CachePublicMetrics bean = this.context.getBean(CachePublicMetrics.class);
 		Collection<Metric<?>> metrics = bean.metrics();
-		assertMetrics(metrics, "cache.books.size", "cache.second_speakers.size",
-				"cache.first_speakers.size", "cache.users.size");
+		assertMetrics(metrics, "cache.books.size", "cache.second_speakers.size", "cache.first_speakers.size",
+				"cache.users.size");
 	}
 
 	private void assertHasMetric(Collection<Metric<?>> metrics, Metric<?> metric) {
 		for (Metric<?> m : metrics) {
-			if (m.getValue().equals(metric.getValue())
-					&& m.getName().equals(metric.getName())) {
+			if (m.getValue().equals(metric.getValue()) && m.getName().equals(metric.getName())) {
 				return;
 			}
 		}
@@ -236,7 +222,7 @@ public class PublicMetricsAutoConfigurationTests {
 			content.put(metric.getName(), metric.getValue());
 		}
 		for (String key : keys) {
-			assertThat(content, hasKey(key));
+			assertThat(content).containsKey(key);
 		}
 	}
 
@@ -245,10 +231,8 @@ public class PublicMetricsAutoConfigurationTests {
 		if (config.length > 0) {
 			context.register(config);
 		}
-		context.register(DataSourcePoolMetadataProvidersConfiguration.class,
-				CacheStatisticsAutoConfiguration.class,
-				PublicMetricsAutoConfiguration.class,
-				MockEmbeddedServletContainerFactory.class);
+		context.register(DataSourcePoolMetadataProvidersConfiguration.class, CacheStatisticsAutoConfiguration.class,
+				PublicMetricsAutoConfiguration.class, MockEmbeddedServletContainerFactory.class);
 		context.refresh();
 		this.context = context;
 	}
@@ -258,8 +242,7 @@ public class PublicMetricsAutoConfigurationTests {
 		if (config.length > 0) {
 			context.register(config);
 		}
-		context.register(DataSourcePoolMetadataProvidersConfiguration.class,
-				CacheStatisticsAutoConfiguration.class,
+		context.register(DataSourcePoolMetadataProvidersConfiguration.class, CacheStatisticsAutoConfiguration.class,
 				PublicMetricsAutoConfiguration.class);
 		context.refresh();
 		this.context = context;
@@ -270,8 +253,7 @@ public class PublicMetricsAutoConfigurationTests {
 
 		@Bean
 		public DataSource tomcatDataSource() {
-			return InitializedBuilder.create()
-					.type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
+			return InitializedBuilder.create().type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
 		}
 
 		@Bean
@@ -283,6 +265,7 @@ public class PublicMetricsAutoConfigurationTests {
 		public DataSource commonsDbcpDataSource() {
 			return InitializedBuilder.create().type(BasicDataSource.class).build();
 		}
+
 	}
 
 	@Configuration
@@ -291,14 +274,14 @@ public class PublicMetricsAutoConfigurationTests {
 		@Bean
 		@Primary
 		public DataSource myDataSource() {
-			return InitializedBuilder.create()
-					.type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
+			return InitializedBuilder.create().type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
 		}
 
 		@Bean
 		public DataSource commonsDbcpDataSource() {
 			return InitializedBuilder.create().type(BasicDataSource.class).build();
 		}
+
 	}
 
 	@Configuration
@@ -307,14 +290,14 @@ public class PublicMetricsAutoConfigurationTests {
 		@Bean
 		@Primary
 		public DataSource myDataSource() {
-			return InitializedBuilder.create()
-					.type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
+			return InitializedBuilder.create().type(org.apache.tomcat.jdbc.pool.DataSource.class).build();
 		}
 
 		@Bean
 		public DataSource dataSource() {
 			return InitializedBuilder.create().type(BasicDataSource.class).build();
 		}
+
 	}
 
 	@Configuration
@@ -324,12 +307,12 @@ public class PublicMetricsAutoConfigurationTests {
 		public DataSourcePublicMetrics myDataSourcePublicMetrics() {
 			return new DataSourcePublicMetrics() {
 				@Override
-				protected String createPrefix(String dataSourceName,
-						DataSource dataSource, boolean primary) {
+				protected String createPrefix(String dataSourceName, DataSource dataSource, boolean primary) {
 					return (primary ? "ds.first." : "ds.second");
 				}
 			};
 		}
+
 	}
 
 	@Configuration
@@ -384,10 +367,10 @@ public class PublicMetricsAutoConfigurationTests {
 	private static class InitializedBuilder {
 
 		public static DataSourceBuilder create() {
-			return DataSourceBuilder.create()
-					.driverClassName("org.hsqldb.jdbc.JDBCDriver")
-					.url("jdbc:hsqldb:mem:test").username("sa");
+			return DataSourceBuilder.create().driverClassName("org.hsqldb.jdbc.JDBCDriver").url("jdbc:hsqldb:mem:test")
+					.username("sa");
 		}
 
 	}
+
 }

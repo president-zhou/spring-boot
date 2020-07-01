@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,6 +25,7 @@ import java.util.List;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.jdbc.DatabaseDriver;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.jdbc.IncorrectResultSetColumnCountException;
@@ -46,8 +47,7 @@ import org.springframework.util.StringUtils;
  * @author Arthur Kalimullin
  * @since 1.1.0
  */
-public class DataSourceHealthIndicator extends AbstractHealthIndicator
-		implements InitializingBean {
+public class DataSourceHealthIndicator extends AbstractHealthIndicator implements InitializingBean {
 
 	private static final String DEFAULT_QUERY = "SELECT 1";
 
@@ -86,8 +86,7 @@ public class DataSourceHealthIndicator extends AbstractHealthIndicator
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
-		Assert.state(this.dataSource != null,
-				"DataSource for DataSourceHealthIndicator must be specified");
+		Assert.state(this.dataSource != null, "DataSource for DataSourceHealthIndicator must be specified");
 	}
 
 	@Override
@@ -107,8 +106,7 @@ public class DataSourceHealthIndicator extends AbstractHealthIndicator
 		if (StringUtils.hasText(validationQuery)) {
 			try {
 				// Avoid calling getObject as it breaks MySQL on Java 7
-				List<Object> results = this.jdbcTemplate.query(validationQuery,
-						new SingleColumnRowMapper());
+				List<Object> results = this.jdbcTemplate.query(validationQuery, new SingleColumnRowMapper());
 				Object result = DataAccessUtils.requiredSingleResult(results);
 				builder.withDetail("hello", result);
 			}
@@ -121,8 +119,7 @@ public class DataSourceHealthIndicator extends AbstractHealthIndicator
 	private String getProduct() {
 		return this.jdbcTemplate.execute(new ConnectionCallback<String>() {
 			@Override
-			public String doInConnection(Connection connection)
-					throws SQLException, DataAccessException {
+			public String doInConnection(Connection connection) throws SQLException, DataAccessException {
 				return connection.getMetaData().getDatabaseProductName();
 			}
 		});
@@ -131,10 +128,8 @@ public class DataSourceHealthIndicator extends AbstractHealthIndicator
 	protected String getValidationQuery(String product) {
 		String query = this.query;
 		if (!StringUtils.hasText(query)) {
-			Product specific = Product.forProduct(product);
-			if (specific != null) {
-				query = specific.getQuery();
-			}
+			DatabaseDriver specific = DatabaseDriver.fromProductName(product);
+			query = specific.getValidationQuery();
 		}
 		if (!StringUtils.hasText(query)) {
 			query = DEFAULT_QUERY;
@@ -181,76 +176,6 @@ public class DataSourceHealthIndicator extends AbstractHealthIndicator
 				throw new IncorrectResultSetColumnCountException(1, columns);
 			}
 			return JdbcUtils.getResultSetValue(rs, 1);
-		}
-
-	}
-
-	/**
-	 * Known database products.
-	 */
-	protected enum Product {
-
-		HSQLDB("HSQL Database Engine",
-				"SELECT COUNT(*) FROM INFORMATION_SCHEMA.SYSTEM_USERS"),
-
-		ORACLE("Oracle", "SELECT 'Hello' from DUAL"),
-
-		DERBY("Apache Derby", "SELECT 1 FROM SYSIBM.SYSDUMMY1"),
-
-		DB2("DB2", "SELECT 1 FROM SYSIBM.SYSDUMMY1") {
-
-			@Override
-			protected boolean matchesProduct(String product) {
-				return super.matchesProduct(product)
-						|| product.toLowerCase().startsWith("db2/");
-			}
-
-		},
-
-		DB2_AS400("DB2 UDB for AS/400", "SELECT 1 FROM SYSIBM.SYSDUMMY1") {
-			@Override
-			protected boolean matchesProduct(String product) {
-				return super.matchesProduct(product)
-						|| product.toLowerCase().contains("as/400");
-			}
-		},
-
-		INFORMIX("Informix Dynamic Server", "select count(*) from systables"),
-
-		FIREBIRD("Firebird", "SELECT 1 FROM RDB$DATABASE") {
-
-			@Override
-			protected boolean matchesProduct(String product) {
-				return super.matchesProduct(product)
-						|| product.toLowerCase().startsWith("firebird");
-			}
-
-		};
-
-		private final String product;
-
-		private final String query;
-
-		Product(String product, String query) {
-			this.product = product;
-			this.query = query;
-		}
-
-		protected boolean matchesProduct(String product) {
-			return this.product.equalsIgnoreCase(product);
-		}
-
-		public String getQuery() {
-			return this.query;
-		}
-
-		public static Product forProduct(String product) {
-			for (Product candidate : values()) {
-				if (candidate.matchesProduct(product)) {
-					return candidate;
-				}
-			}
-			return null;
 		}
 
 	}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,8 +38,7 @@ import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -104,18 +103,16 @@ public class DispatcherFilterTests {
 	public void handledByDispatcher() throws Exception {
 		HttpServletRequest request = new MockHttpServletRequest("GET", "/hello");
 		HttpServletResponse response = new MockHttpServletResponse();
-		willReturn(true).given(this.dispatcher).handle(any(ServerHttpRequest.class),
-				any(ServerHttpResponse.class));
+		willReturn(true).given(this.dispatcher).handle(any(ServerHttpRequest.class), any(ServerHttpResponse.class));
 		this.filter.doFilter(request, response, this.chain);
 		verifyZeroInteractions(this.chain);
-		verify(this.dispatcher).handle(this.serverRequestCaptor.capture(),
-				this.serverResponseCaptor.capture());
+		verify(this.dispatcher).handle(this.serverRequestCaptor.capture(), this.serverResponseCaptor.capture());
 		ServerHttpRequest dispatcherRequest = this.serverRequestCaptor.getValue();
 		ServletServerHttpRequest actualRequest = (ServletServerHttpRequest) dispatcherRequest;
 		ServerHttpResponse dispatcherResponse = this.serverResponseCaptor.getValue();
 		ServletServerHttpResponse actualResponse = (ServletServerHttpResponse) dispatcherResponse;
-		assertThat(actualRequest.getServletRequest(), equalTo(request));
-		assertThat(actualResponse.getServletResponse(), equalTo(response));
+		assertThat(actualRequest.getServletRequest()).isEqualTo(request);
+		assertThat(actualResponse.getServletResponse()).isEqualTo(response);
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,10 +29,7 @@ import org.junit.Test;
 
 import org.springframework.util.SocketUtils;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -65,7 +62,7 @@ public class SocketTargetServerConnectionTests {
 		ByteChannel channel = this.connection.open(DEFAULT_TIMEOUT);
 		ByteBuffer buffer = ByteBuffer.allocate(5);
 		channel.read(buffer);
-		assertThat(buffer.array(), equalTo("hello".getBytes()));
+		assertThat(buffer.array()).isEqualTo("hello".getBytes());
 	}
 
 	@Test
@@ -91,8 +88,8 @@ public class SocketTargetServerConnectionTests {
 		catch (SocketTimeoutException ex) {
 			// Expected
 			long runTime = System.currentTimeMillis() - startTime;
-			assertThat(runTime, greaterThanOrEqualTo(10L));
-			assertThat(runTime, lessThan(10000L));
+			assertThat(runTime).isGreaterThanOrEqualTo(10L);
+			assertThat(runTime).isLessThan(10000L);
 		}
 	}
 
@@ -134,7 +131,7 @@ public class SocketTargetServerConnectionTests {
 
 		public void closeAndVerify() throws InterruptedException {
 			close();
-			assertThat(this.actualRead.array(), equalTo(this.expect));
+			assertThat(this.actualRead.array()).isEqualTo(this.expect);
 		}
 
 		public void close() throws InterruptedException {
@@ -157,8 +154,7 @@ public class SocketTargetServerConnectionTests {
 						}
 					}
 					if (MockServer.this.expect != null) {
-						ByteBuffer buffer = ByteBuffer
-								.allocate(MockServer.this.expect.length);
+						ByteBuffer buffer = ByteBuffer.allocate(MockServer.this.expect.length);
 						while (buffer.hasRemaining()) {
 							channel.read(buffer);
 						}

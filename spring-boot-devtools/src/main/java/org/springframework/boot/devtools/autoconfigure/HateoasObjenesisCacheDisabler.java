@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,9 @@ import java.lang.reflect.Field;
 
 import javax.annotation.PostConstruct;
 
-import org.springframework.objenesis.ObjenesisStd;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
@@ -31,9 +33,10 @@ import org.springframework.util.ReflectionUtils;
  * restarts.
  *
  * @author Andy Wilkinson
- * @since 1.3.0
  */
 class HateoasObjenesisCacheDisabler {
+
+	private static final Log logger = LogFactory.getLog(HateoasObjenesisCacheDisabler.class);
 
 	private static boolean cacheDisabled;
 
@@ -45,19 +48,30 @@ class HateoasObjenesisCacheDisabler {
 		}
 	}
 
-	private void doDisableCaching() {
+	void doDisableCaching() {
 		try {
-			Class<?> type = ClassUtils.forName(
-					"org.springframework.hateoas.core.DummyInvocationUtils",
+			Class<?> type = ClassUtils.forName("org.springframework.hateoas.core.DummyInvocationUtils",
 					getClass().getClassLoader());
-			Field objenesis = ReflectionUtils.findField(type, "OBJENESIS");
-			if (objenesis != null) {
-				ReflectionUtils.makeAccessible(objenesis);
-				ReflectionUtils.setField(objenesis, null, new ObjenesisStd(false));
-			}
+			removeObjenesisCache(type);
 		}
 		catch (Exception ex) {
 			// Assume that Spring HATEOAS is not on the classpath and continue
+		}
+	}
+
+	private void removeObjenesisCache(Class<?> dummyInvocationUtils) {
+		try {
+			Field objenesisField = ReflectionUtils.findField(dummyInvocationUtils, "OBJENESIS");
+			if (objenesisField != null) {
+				ReflectionUtils.makeAccessible(objenesisField);
+				Object objenesis = ReflectionUtils.getField(objenesisField, null);
+				Field cacheField = ReflectionUtils.findField(objenesis.getClass(), "cache");
+				ReflectionUtils.makeAccessible(cacheField);
+				ReflectionUtils.setField(cacheField, objenesis, null);
+			}
+		}
+		catch (Exception ex) {
+			logger.warn("Failed to disable Spring HATEOAS's Objenesis cache. ClassCastExceptions may occur", ex);
 		}
 	}
 

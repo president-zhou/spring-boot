@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +28,7 @@ import java.util.Set;
  * exploded) or when running from a test.
  *
  * @author Phillip Webb
+ * @author Andy Wilkinson
  * @since 1.3.0
  */
 public class DefaultRestartInitializer implements RestartInitializer {
@@ -38,6 +39,7 @@ public class DefaultRestartInitializer implements RestartInitializer {
 		Set<String> skipped = new LinkedHashSet<String>();
 		skipped.add("org.junit.runners.");
 		skipped.add("org.springframework.boot.test.");
+		skipped.add("cucumber.runtime.");
 		SKIPPED_STACK_ELEMENTS = Collections.unmodifiableSet(skipped);
 	}
 
@@ -61,8 +63,8 @@ public class DefaultRestartInitializer implements RestartInitializer {
 	 * @return {@code true} if the thread is a main invocation
 	 */
 	protected boolean isMain(Thread thread) {
-		return thread.getName().equals("main") && thread.getContextClassLoader()
-				.getClass().getName().contains("AppClassLoader");
+		return thread.getName().equals("main")
+				&& thread.getContextClassLoader().getClass().getName().contains("AppClassLoader");
 	}
 
 	/**
@@ -87,9 +89,7 @@ public class DefaultRestartInitializer implements RestartInitializer {
 	 * @return the URLs
 	 */
 	protected URL[] getUrls(Thread thread) {
-		return ChangeableUrls
-				.fromUrlClassLoader((URLClassLoader) thread.getContextClassLoader())
-				.toArray();
+		return ChangeableUrls.fromUrlClassLoader((URLClassLoader) thread.getContextClassLoader()).toArray();
 	}
 
 }

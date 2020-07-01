@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.boot.bind;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
@@ -40,10 +41,11 @@ import org.springframework.validation.DataBinder;
  *
  * @author Dave Syer
  * @author Phillip Webb
+ * @since 1.0.0
  */
 public class PropertySourcesPropertyValues implements PropertyValues {
 
-	private static final Pattern COLLECTION_PROPERTY = Pattern.compile("\\[(\\d+)\\]");
+	private static final Pattern COLLECTION_PROPERTY = Pattern.compile("\\[(\\d+)\\](\\.\\S+)?");
 
 	private final PropertySources propertySources;
 
@@ -55,12 +57,25 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 
 	private final ConcurrentHashMap<String, PropertySource<?>> collectionOwners = new ConcurrentHashMap<String, PropertySource<?>>();
 
+	private final boolean resolvePlaceholders;
+
 	/**
 	 * Create a new PropertyValues from the given PropertySources.
 	 * @param propertySources a PropertySources instance
 	 */
 	public PropertySourcesPropertyValues(PropertySources propertySources) {
-		this(propertySources, (Collection<String>) null, PropertyNamePatternsMatcher.ALL);
+		this(propertySources, true);
+	}
+
+	/**
+	 * Create a new PropertyValues from the given PropertySources that will optionally
+	 * resolve placeholders.
+	 * @param propertySources a PropertySources instance
+	 * @param resolvePlaceholders {@code true} if placeholders should be resolved.
+	 * @since 1.5.2
+	 */
+	public PropertySourcesPropertyValues(PropertySources propertySources, boolean resolvePlaceholders) {
+		this(propertySources, (Collection<String>) null, PropertyNamePatternsMatcher.ALL, resolvePlaceholders);
 	}
 
 	/**
@@ -71,11 +86,10 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 	 * @param nonEnumerableFallbackNames the property names to try in lieu of an
 	 * {@link EnumerablePropertySource}.
 	 */
-	public PropertySourcesPropertyValues(PropertySources propertySources,
-			Collection<String> includePatterns,
+	public PropertySourcesPropertyValues(PropertySources propertySources, Collection<String> includePatterns,
 			Collection<String> nonEnumerableFallbackNames) {
-		this(propertySources, nonEnumerableFallbackNames,
-				new PatternPropertyNamePatternsMatcher(includePatterns));
+		this(propertySources, nonEnumerableFallbackNames, new PatternPropertyNamePatternsMatcher(includePatterns),
+				true);
 	}
 
 	/**
@@ -84,30 +98,28 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 	 * @param nonEnumerableFallbackNames the property names to try in lieu of an
 	 * {@link EnumerablePropertySource}.
 	 * @param includes the property name patterns to include
+	 * @param resolvePlaceholders flag to indicate the placeholders should be resolved
 	 */
-	PropertySourcesPropertyValues(PropertySources propertySources,
-			Collection<String> nonEnumerableFallbackNames,
-			PropertyNamePatternsMatcher includes) {
+	PropertySourcesPropertyValues(PropertySources propertySources, Collection<String> nonEnumerableFallbackNames,
+			PropertyNamePatternsMatcher includes, boolean resolvePlaceholders) {
 		Assert.notNull(propertySources, "PropertySources must not be null");
 		Assert.notNull(includes, "Includes must not be null");
 		this.propertySources = propertySources;
 		this.nonEnumerableFallbackNames = nonEnumerableFallbackNames;
 		this.includes = includes;
-		PropertySourcesPropertyResolver resolver = new PropertySourcesPropertyResolver(
-				propertySources);
+		this.resolvePlaceholders = resolvePlaceholders;
+		PropertySourcesPropertyResolver resolver = new PropertySourcesPropertyResolver(propertySources);
 		for (PropertySource<?> source : propertySources) {
 			processPropertySource(source, resolver);
 		}
 	}
 
-	private void processPropertySource(PropertySource<?> source,
-			PropertySourcesPropertyResolver resolver) {
+	private void processPropertySource(PropertySource<?> source, PropertySourcesPropertyResolver resolver) {
 		if (source instanceof CompositePropertySource) {
 			processCompositePropertySource((CompositePropertySource) source, resolver);
 		}
 		else if (source instanceof EnumerablePropertySource) {
-			processEnumerablePropertySource((EnumerablePropertySource<?>) source,
-					resolver, this.includes);
+			processEnumerablePropertySource((EnumerablePropertySource<?>) source, resolver, this.includes);
 		}
 		else {
 			processNonEnumerablePropertySource(source, resolver);
@@ -122,8 +134,7 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 	}
 
 	private void processEnumerablePropertySource(EnumerablePropertySource<?> source,
-			PropertySourcesPropertyResolver resolver,
-			PropertyNamePatternsMatcher includes) {
+			PropertySourcesPropertyResolver resolver, PropertyNamePatternsMatcher includes) {
 		if (source.getPropertyNames().length > 0) {
 			for (String propertyName : source.getPropertyNames()) {
 				if (includes.matches(propertyName)) {
@@ -134,15 +145,17 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 		}
 	}
 
-	private Object getEnumerableProperty(EnumerablePropertySource<?> source,
-			PropertySourcesPropertyResolver resolver, String propertyName) {
+	private Object getEnumerableProperty(EnumerablePropertySource<?> source, PropertySourcesPropertyResolver resolver,
+			String propertyName) {
 		try {
-			return resolver.getProperty(propertyName, Object.class);
+			if (this.resolvePlaceholders) {
+				return resolver.getProperty(propertyName, Object.class);
+			}
 		}
 		catch (RuntimeException ex) {
 			// Probably could not resolve placeholders, ignore it here
-			return source.getProperty(propertyName);
 		}
+		return source.getProperty(propertyName);
 	}
 
 	private void processNonEnumerablePropertySource(PropertySource<?> source,
@@ -164,7 +177,7 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 				// Probably could not convert to Object, weird, but ignorable
 			}
 			if (value == null) {
-				value = source.getProperty(propertyName.toUpperCase());
+				value = source.getProperty(propertyName.toUpperCase(Locale.ENGLISH));
 			}
 			putIfAbsent(propertyName, value, source);
 		}
@@ -192,14 +205,12 @@ public class PropertySourcesPropertyValues implements PropertyValues {
 		return null;
 	}
 
-	private PropertyValue putIfAbsent(String propertyName, Object value,
-			PropertySource<?> source) {
+	private PropertyValue putIfAbsent(String propertyName, Object value, PropertySource<?> source) {
 		if (value != null && !this.propertyValues.containsKey(propertyName)) {
-			PropertySource<?> collectionOwner = this.collectionOwners.putIfAbsent(
-					COLLECTION_PROPERTY.matcher(propertyName).replaceAll("[]"), source);
+			PropertySource<?> collectionOwner = this.collectionOwners
+					.putIfAbsent(COLLECTION_PROPERTY.matcher(propertyName).replaceAll("[]"), source);
 			if (collectionOwner == null || collectionOwner == source) {
-				PropertyValue propertyValue = new OriginCapablePropertyValue(propertyName,
-						value, propertyName, source);
+				PropertyValue propertyValue = new OriginCapablePropertyValue(propertyName, value, propertyName, source);
 				this.propertyValues.put(propertyName, propertyValue);
 				return propertyValue;
 			}

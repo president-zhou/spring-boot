@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,10 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertyResolver;
 import org.springframework.core.env.PropertySource;
+import org.springframework.core.env.PropertySources;
+import org.springframework.core.env.PropertySourcesPropertyResolver;
 import org.springframework.core.env.StandardEnvironment;
 
 /**
@@ -35,6 +38,8 @@ import org.springframework.core.env.StandardEnvironment;
  * @author Dave Syer
  * @author Phillip Webb
  * @author Christian Dupuis
+ * @author Madhura Bhave
+ * @since 1.0.0
  */
 @ConfigurationProperties(prefix = "endpoints.env")
 public class EnvironmentEndpoint extends AbstractEndpoint<Map<String, Object>> {
@@ -56,24 +61,46 @@ public class EnvironmentEndpoint extends AbstractEndpoint<Map<String, Object>> {
 	public Map<String, Object> invoke() {
 		Map<String, Object> result = new LinkedHashMap<String, Object>();
 		result.put("profiles", getEnvironment().getActiveProfiles());
-		for (Entry<String, PropertySource<?>> entry : getPropertySources().entrySet()) {
+		PropertyResolver resolver = getResolver();
+		for (Entry<String, PropertySource<?>> entry : getPropertySourcesAsMap().entrySet()) {
 			PropertySource<?> source = entry.getValue();
 			String sourceName = entry.getKey();
 			if (source instanceof EnumerablePropertySource) {
 				EnumerablePropertySource<?> enumerable = (EnumerablePropertySource<?>) source;
-				Map<String, Object> map = new LinkedHashMap<String, Object>();
+				Map<String, Object> properties = new LinkedHashMap<String, Object>();
 				for (String name : enumerable.getPropertyNames()) {
-					map.put(name, sanitize(name, enumerable.getProperty(name)));
+					Object resolved = source.getProperty(name);
+					if (resolved instanceof String) {
+						resolved = resolver.resolvePlaceholders((String) resolved);
+					}
+					properties.put(name, sanitize(name, resolved));
 				}
-				result.put(sourceName, map);
+				properties = postProcessSourceProperties(sourceName, properties);
+				if (properties != null) {
+					result.put(sourceName, properties);
+				}
 			}
 		}
 		return result;
 	}
 
-	private Map<String, PropertySource<?>> getPropertySources() {
+	public PropertyResolver getResolver() {
+		PlaceholderSanitizingPropertyResolver resolver = new PlaceholderSanitizingPropertyResolver(getPropertySources(),
+				this.sanitizer);
+		resolver.setIgnoreUnresolvableNestedPlaceholders(true);
+		return resolver;
+	}
+
+	private Map<String, PropertySource<?>> getPropertySourcesAsMap() {
 		Map<String, PropertySource<?>> map = new LinkedHashMap<String, PropertySource<?>>();
-		MutablePropertySources sources = null;
+		for (PropertySource<?> source : getPropertySources()) {
+			extract("", map, source);
+		}
+		return map;
+	}
+
+	private MutablePropertySources getPropertySources() {
+		MutablePropertySources sources;
 		Environment environment = getEnvironment();
 		if (environment != null && environment instanceof ConfigurableEnvironment) {
 			sources = ((ConfigurableEnvironment) environment).getPropertySources();
@@ -81,17 +108,12 @@ public class EnvironmentEndpoint extends AbstractEndpoint<Map<String, Object>> {
 		else {
 			sources = new StandardEnvironment().getPropertySources();
 		}
-		for (PropertySource<?> source : sources) {
-			extract("", map, source);
-		}
-		return map;
+		return sources;
 	}
 
-	private void extract(String root, Map<String, PropertySource<?>> map,
-			PropertySource<?> source) {
+	private void extract(String root, Map<String, PropertySource<?>> map, PropertySource<?> source) {
 		if (source instanceof CompositePropertySource) {
-			for (PropertySource<?> nest : ((CompositePropertySource) source)
-					.getPropertySources()) {
+			for (PropertySource<?> nest : ((CompositePropertySource) source).getPropertySources()) {
 				extract(source.getName() + ":", map, nest);
 			}
 		}
@@ -102,6 +124,44 @@ public class EnvironmentEndpoint extends AbstractEndpoint<Map<String, Object>> {
 
 	public Object sanitize(String name, Object object) {
 		return this.sanitizer.sanitize(name, object);
+	}
+
+	/**
+	 * Apply any post processing to source data before it is added.
+	 * @param sourceName the source name
+	 * @param properties the properties
+	 * @return the post-processed properties or {@code null} if the source should not be
+	 * added
+	 * @since 1.4.0
+	 */
+	protected Map<String, Object> postProcessSourceProperties(String sourceName, Map<String, Object> properties) {
+		return properties;
+	}
+
+	/**
+	 * {@link PropertySourcesPropertyResolver} that sanitizes sensitive placeholders if
+	 * present.
+	 */
+	private class PlaceholderSanitizingPropertyResolver extends PropertySourcesPropertyResolver {
+
+		private final Sanitizer sanitizer;
+
+		/**
+		 * Create a new resolver against the given property sources.
+		 * @param propertySources the set of {@link PropertySource} objects to use
+		 * @param sanitizer the sanitizer used to sanitize sensitive values
+		 */
+		PlaceholderSanitizingPropertyResolver(PropertySources propertySources, Sanitizer sanitizer) {
+			super(propertySources);
+			this.sanitizer = sanitizer;
+		}
+
+		@Override
+		protected String getPropertyAsRawString(String key) {
+			String value = super.getPropertyAsRawString(key);
+			return (String) this.sanitizer.sanitize(key, value);
+		}
+
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,6 @@
 
 package org.springframework.boot.autoconfigure.security.oauth2;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -42,20 +41,21 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
  */
 @Configuration
 @ConditionalOnClass({ OAuth2AccessToken.class, WebMvcConfigurerAdapter.class })
-@Import({ OAuth2AuthorizationServerConfiguration.class,
-		OAuth2MethodSecurityConfiguration.class, OAuth2ResourceServerConfiguration.class,
-		OAuth2RestOperationsConfiguration.class })
+@Import({ OAuth2AuthorizationServerConfiguration.class, OAuth2MethodSecurityConfiguration.class,
+		OAuth2ResourceServerConfiguration.class, OAuth2RestOperationsConfiguration.class })
 @AutoConfigureBefore(WebMvcAutoConfiguration.class)
 @EnableConfigurationProperties(OAuth2ClientProperties.class)
 public class OAuth2AutoConfiguration {
 
-	@Autowired
-	private OAuth2ClientProperties credentials;
+	private final OAuth2ClientProperties credentials;
+
+	public OAuth2AutoConfiguration(OAuth2ClientProperties credentials) {
+		this.credentials = credentials;
+	}
 
 	@Bean
 	public ResourceServerProperties resourceServerProperties() {
-		return new ResourceServerProperties(this.credentials.getClientId(),
-				this.credentials.getClientSecret());
+		return new ResourceServerProperties(this.credentials.getClientId(), this.credentials.getClientSecret());
 	}
 
 }

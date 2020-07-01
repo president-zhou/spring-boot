@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,7 +46,7 @@ import org.springframework.util.StringUtils;
 public class PoolingConnectionFactoryBean extends PoolingConnectionFactory
 		implements BeanNameAware, InitializingBean, DisposableBean {
 
-	private static ThreadLocal<PoolingConnectionFactoryBean> source = new ThreadLocal<PoolingConnectionFactoryBean>();
+	private static final ThreadLocal<PoolingConnectionFactoryBean> source = new ThreadLocal<PoolingConnectionFactoryBean>();
 
 	private String beanName;
 
@@ -104,8 +104,7 @@ public class PoolingConnectionFactoryBean extends PoolingConnectionFactory
 	}
 
 	@Override
-	public XAStatefulHolder createPooledConnection(Object xaFactory, ResourceBean bean)
-			throws Exception {
+	public XAStatefulHolder createPooledConnection(Object xaFactory, ResourceBean bean) throws Exception {
 		if (xaFactory instanceof DirectXAConnectionFactory) {
 			xaFactory = ((DirectXAConnectionFactory) xaFactory).getConnectionFactory();
 		}
@@ -115,6 +114,7 @@ public class PoolingConnectionFactoryBean extends PoolingConnectionFactory
 	/**
 	 * A {@link XAConnectionFactory} implementation that delegates to the
 	 * {@link ThreadLocal} {@link PoolingConnectionFactoryBean}.
+	 *
 	 * @see PoolingConnectionFactoryBean#setConnectionFactory(XAConnectionFactory)
 	 */
 	public static class DirectXAConnectionFactory implements XAConnectionFactory {
@@ -131,8 +131,7 @@ public class PoolingConnectionFactoryBean extends PoolingConnectionFactory
 		}
 
 		@Override
-		public XAConnection createXAConnection(String userName, String password)
-				throws JMSException {
+		public XAConnection createXAConnection(String userName, String password) throws JMSException {
 			return this.connectionFactory.createXAConnection(userName, password);
 		}
 

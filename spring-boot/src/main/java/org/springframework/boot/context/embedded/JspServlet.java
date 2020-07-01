@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,7 @@ public class JspServlet {
 	private String className = "org.apache.jasper.servlet.JspServlet";
 
 	/**
-	 * Init parameters use to configure the JSP servlet.
+	 * Init parameters used to configure the JSP servlet.
 	 */
 	private Map<String, String> initParameters = new HashMap<String, String>();
 
@@ -45,6 +45,10 @@ public class JspServlet {
 	 * container.
 	 */
 	private boolean registered = true;
+
+	public JspServlet() {
+		this.initParameters.put("development", "false");
+	}
 
 	public String getClassName() {
 		return this.className;

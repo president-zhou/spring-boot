@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,8 +18,10 @@ package org.springframework.boot.autoconfigure.cache;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 
@@ -43,6 +45,10 @@ public class CacheProperties {
 	 * manager. Usually, this disables the ability to create additional caches on-the-fly.
 	 */
 	private List<String> cacheNames = new ArrayList<String>();
+
+	private final Caffeine caffeine = new Caffeine();
+
+	private final Couchbase couchbase = new Couchbase();
 
 	private final EhCache ehcache = new EhCache();
 
@@ -70,10 +76,19 @@ public class CacheProperties {
 		this.cacheNames = cacheNames;
 	}
 
+	public Caffeine getCaffeine() {
+		return this.caffeine;
+	}
+
+	public Couchbase getCouchbase() {
+		return this.couchbase;
+	}
+
 	public EhCache getEhcache() {
 		return this.ehcache;
 	}
 
+	@Deprecated
 	public Hazelcast getHazelcast() {
 		return this.hazelcast;
 	}
@@ -99,11 +114,60 @@ public class CacheProperties {
 	 */
 	public Resource resolveConfigLocation(Resource config) {
 		if (config != null) {
-			Assert.isTrue(config.exists(), "Cache configuration does not exist '"
-					+ config.getDescription() + "'");
+			Assert.isTrue(config.exists(), "Cache configuration does not exist '" + config.getDescription() + "'");
 			return config;
 		}
 		return null;
+	}
+
+	/**
+	 * Caffeine specific cache properties.
+	 */
+	public static class Caffeine {
+
+		/**
+		 * The spec to use to create caches. Check CaffeineSpec for more details on the
+		 * spec format.
+		 */
+		private String spec;
+
+		public String getSpec() {
+			return this.spec;
+		}
+
+		public void setSpec(String spec) {
+			this.spec = spec;
+		}
+
+	}
+
+	/**
+	 * Couchbase specific cache properties.
+	 */
+	public static class Couchbase {
+
+		/**
+		 * Entry expiration in milliseconds. By default the entries never expire. Note
+		 * that this value is ultimately converted to seconds.
+		 */
+		private int expiration;
+
+		public int getExpiration() {
+			return this.expiration;
+		}
+
+		/**
+		 * Return the expiration in seconds.
+		 * @return the expiration in seconds
+		 */
+		public int getExpirationSeconds() {
+			return (int) TimeUnit.MILLISECONDS.toSeconds(this.expiration);
+		}
+
+		public void setExpiration(int expiration) {
+			this.expiration = expiration;
+		}
+
 	}
 
 	/**
@@ -129,6 +193,7 @@ public class CacheProperties {
 	/**
 	 * Hazelcast specific cache properties.
 	 */
+	@Deprecated
 	public static class Hazelcast {
 
 		/**
@@ -136,6 +201,9 @@ public class CacheProperties {
 		 */
 		private Resource config;
 
+		@DeprecatedConfigurationProperty(replacement = "spring.hazelcast.config",
+				reason = "Use general hazelcast auto-configuration instead.")
+		@Deprecated
 		public Resource getConfig() {
 			return this.config;
 		}
@@ -213,10 +281,14 @@ public class CacheProperties {
 		 */
 		private String spec;
 
+		@Deprecated
+		@DeprecatedConfigurationProperty(reason = "Caffeine will supersede the Guava support in Spring Boot 2.0",
+				replacement = "spring.cache.caffeine.spec")
 		public String getSpec() {
 			return this.spec;
 		}
 
+		@Deprecated
 		public void setSpec(String spec) {
 			this.spec = spec;
 		}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,10 +23,13 @@ import org.junit.Test;
 import org.springframework.boot.actuate.metrics.Metric;
 import org.springframework.boot.actuate.metrics.writer.Delta;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 /**
  * Tests for {@link InMemoryMetricRepository}.
+ *
+ * @author Dave Syer
  */
 public class InMemoryMetricRepositoryTests {
 
@@ -35,13 +38,13 @@ public class InMemoryMetricRepositoryTests {
 	@Test
 	public void increment() {
 		this.repository.increment(new Delta<Integer>("foo", 1, new Date()));
-		assertEquals(1.0, this.repository.findOne("foo").getValue().doubleValue(), 0.01);
+		assertThat(this.repository.findOne("foo").getValue().doubleValue()).isEqualTo(1.0, offset(0.01));
 	}
 
 	@Test
 	public void set() {
 		this.repository.set(new Metric<Double>("foo", 2.5, new Date()));
-		assertEquals(2.5, this.repository.findOne("foo").getValue().doubleValue(), 0.01);
+		assertThat(this.repository.findOne("foo").getValue().doubleValue()).isEqualTo(2.5, offset(0.01));
 	}
 
 }

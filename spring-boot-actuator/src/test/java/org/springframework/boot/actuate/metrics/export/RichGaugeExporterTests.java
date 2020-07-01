@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,10 +20,10 @@ import org.junit.Test;
 
 import org.springframework.boot.actuate.metrics.Iterables;
 import org.springframework.boot.actuate.metrics.Metric;
-import org.springframework.boot.actuate.metrics.repository.InMemoryMetricRepository;
+import org.springframework.boot.actuate.metrics.repository.InMemoryMultiMetricRepository;
 import org.springframework.boot.actuate.metrics.rich.InMemoryRichGaugeRepository;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link RichGaugeExporter}.
@@ -34,16 +34,15 @@ public class RichGaugeExporterTests {
 
 	private final InMemoryRichGaugeRepository reader = new InMemoryRichGaugeRepository();
 
-	private final InMemoryMetricRepository writer = new InMemoryMetricRepository();
+	private final InMemoryMultiMetricRepository writer = new InMemoryMultiMetricRepository();
 
-	private final RichGaugeExporter exporter = new RichGaugeExporter(this.reader,
-			this.writer);
+	private final RichGaugeExporter exporter = new RichGaugeExporter(this.reader, this.writer);
 
 	@Test
 	public void prefixedMetricsCopied() {
 		this.reader.set(new Metric<Number>("foo", 2.3));
 		this.exporter.export();
-		assertEquals(1, Iterables.collection(this.writer.groups()).size());
+		assertThat(Iterables.collection(this.writer.groups())).hasSize(1);
 	}
 
 }

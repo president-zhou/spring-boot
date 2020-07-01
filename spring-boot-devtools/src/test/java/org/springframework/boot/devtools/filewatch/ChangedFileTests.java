@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,8 +25,7 @@ import org.junit.rules.TemporaryFolder;
 
 import org.springframework.boot.devtools.filewatch.ChangedFile.Type;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ChangedFile}.
@@ -66,14 +65,13 @@ public class ChangedFileTests {
 	public void getFile() throws Exception {
 		File file = this.temp.newFile();
 		ChangedFile changedFile = new ChangedFile(this.temp.newFolder(), file, Type.ADD);
-		assertThat(changedFile.getFile(), equalTo(file));
+		assertThat(changedFile.getFile()).isEqualTo(file);
 	}
 
 	@Test
 	public void getType() throws Exception {
-		ChangedFile changedFile = new ChangedFile(this.temp.newFolder(),
-				this.temp.newFile(), Type.DELETE);
-		assertThat(changedFile.getType(), equalTo(Type.DELETE));
+		ChangedFile changedFile = new ChangedFile(this.temp.newFolder(), this.temp.newFile(), Type.DELETE);
+		assertThat(changedFile.getType()).isEqualTo(Type.DELETE);
 	}
 
 	@Test
@@ -82,7 +80,7 @@ public class ChangedFileTests {
 		File subFolder = new File(folder, "A");
 		File file = new File(subFolder, "B.txt");
 		ChangedFile changedFile = new ChangedFile(folder, file, Type.ADD);
-		assertThat(changedFile.getRelativeName(), equalTo("A/B.txt"));
+		assertThat(changedFile.getRelativeName()).isEqualTo("A/B.txt");
 	}
 
 }

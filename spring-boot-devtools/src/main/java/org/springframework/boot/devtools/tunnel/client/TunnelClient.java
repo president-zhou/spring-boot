@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,11 +46,13 @@ public class TunnelClient implements SmartInitializingSingleton {
 
 	private static final Log logger = LogFactory.getLog(TunnelClient.class);
 
+	private final TunnelClientListeners listeners = new TunnelClientListeners();
+
+	private final Object monitor = new Object();
+
 	private final int listenPort;
 
 	private final TunnelConnection tunnelConnection;
-
-	private TunnelClientListeners listeners = new TunnelClientListeners();
 
 	private ServerThread serverThread;
 
@@ -63,12 +65,14 @@ public class TunnelClient implements SmartInitializingSingleton {
 
 	@Override
 	public void afterSingletonsInstantiated() {
-		if (this.serverThread == null) {
-			try {
-				start();
-			}
-			catch (IOException ex) {
-				throw new IllegalStateException(ex);
+		synchronized (this.monitor) {
+			if (this.serverThread == null) {
+				try {
+					start();
+				}
+				catch (IOException ex) {
+					throw new IllegalStateException(ex);
+				}
 			}
 		}
 	}
@@ -77,35 +81,41 @@ public class TunnelClient implements SmartInitializingSingleton {
 	 * Start the client and accept incoming connections on the port.
 	 * @throws IOException in case of I/O errors
 	 */
-	public synchronized void start() throws IOException {
-		Assert.state(this.serverThread == null, "Server already started");
-		ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-		serverSocketChannel.socket().bind(new InetSocketAddress(this.listenPort));
-		logger.trace("Listening for TCP traffic to tunnel on port " + this.listenPort);
-		this.serverThread = new ServerThread(serverSocketChannel);
-		this.serverThread.start();
+	public void start() throws IOException {
+		synchronized (this.monitor) {
+			Assert.state(this.serverThread == null, "Server already started");
+			ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+			serverSocketChannel.socket().bind(new InetSocketAddress(this.listenPort));
+			logger.trace("Listening for TCP traffic to tunnel on port " + this.listenPort);
+			this.serverThread = new ServerThread(serverSocketChannel);
+			this.serverThread.start();
+		}
 	}
 
 	/**
 	 * Stop the client, disconnecting any servers.
 	 * @throws IOException in case of I/O errors
 	 */
-	public synchronized void stop() throws IOException {
-		if (this.serverThread != null) {
-			logger.trace("Closing tunnel client on port " + this.listenPort);
-			this.serverThread.close();
-			try {
-				this.serverThread.join(2000);
+	public void stop() throws IOException {
+		synchronized (this.monitor) {
+			if (this.serverThread != null) {
+				logger.trace("Closing tunnel client on port " + this.listenPort);
+				this.serverThread.close();
+				try {
+					this.serverThread.join(2000);
+				}
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+				}
+				this.serverThread = null;
 			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-			this.serverThread = null;
 		}
 	}
 
 	protected final ServerThread getServerThread() {
-		return this.serverThread;
+		synchronized (this.monitor) {
+			return this.serverThread;
+		}
 	}
 
 	public void addListener(TunnelClientListener listener) {
@@ -160,12 +170,11 @@ public class TunnelClient implements SmartInitializingSingleton {
 
 		private void handleConnection(SocketChannel socketChannel) throws Exception {
 			Closeable closeable = new SocketCloseable(socketChannel);
-			WritableByteChannel outputChannel = TunnelClient.this.tunnelConnection
-					.open(socketChannel, closeable);
+			WritableByteChannel outputChannel = TunnelClient.this.tunnelConnection.open(socketChannel, closeable);
 			TunnelClient.this.listeners.fireOpenEvent(socketChannel);
 			try {
-				logger.trace("Accepted connection to tunnel client from "
-						+ socketChannel.socket().getRemoteSocketAddress());
+				logger.trace(
+						"Accepted connection to tunnel client from " + socketChannel.socket().getRemoteSocketAddress());
 				while (true) {
 					ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 					int amountRead = socketChannel.read(buffer);
@@ -187,6 +196,7 @@ public class TunnelClient implements SmartInitializingSingleton {
 		protected void stopAcceptingConnections() {
 			this.acceptConnections = false;
 		}
+
 	}
 
 	/**
@@ -210,5 +220,7 @@ public class TunnelClient implements SmartInitializingSingleton {
 				this.closed = true;
 			}
 		}
+
 	}
+
 }

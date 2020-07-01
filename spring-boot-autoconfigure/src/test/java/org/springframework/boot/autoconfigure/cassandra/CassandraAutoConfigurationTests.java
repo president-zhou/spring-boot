@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,19 +20,20 @@ import com.datastax.driver.core.Cluster;
 import org.junit.After;
 import org.junit.Test;
 
-import org.springframework.boot.autoconfigure.PropertyPlaceholderAutoConfiguration;
-import org.springframework.boot.test.EnvironmentTestUtils;
+import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link CassandraAutoConfiguration}
  *
  * @author Eddú Meléndez
+ * @author Stephane Nicoll
  */
 public class CassandraAutoConfigurationTests {
 
@@ -47,27 +48,73 @@ public class CassandraAutoConfigurationTests {
 
 	@Test
 	public void createClusterWithDefault() {
-		this.context = doLoad();
-		assertEquals(1, this.context.getBeanNamesForType(Cluster.class).length);
+		load();
+		assertThat(this.context.getBeanNamesForType(Cluster.class).length).isEqualTo(1);
 		Cluster cluster = this.context.getBean(Cluster.class);
-		assertThat(cluster.getClusterName(), startsWith("cluster"));
+		assertThat(cluster.getClusterName()).startsWith("cluster");
 	}
 
 	@Test
 	public void createClusterWithOverrides() {
-		this.context = doLoad("spring.data.cassandra.cluster-name=testcluster");
-		assertEquals(1, this.context.getBeanNamesForType(Cluster.class).length);
+		load("spring.data.cassandra.cluster-name=testcluster");
+		assertThat(this.context.getBeanNamesForType(Cluster.class).length).isEqualTo(1);
 		Cluster cluster = this.context.getBean(Cluster.class);
-		assertThat(cluster.getClusterName(), equalTo("testcluster"));
+		assertThat(cluster.getClusterName()).isEqualTo("testcluster");
 	}
 
-	private AnnotationConfigApplicationContext doLoad(String... environment) {
-		AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext();
-		EnvironmentTestUtils.addEnvironment(applicationContext, environment);
-		applicationContext.register(PropertyPlaceholderAutoConfiguration.class,
-				CassandraAutoConfiguration.class);
-		applicationContext.refresh();
-		return applicationContext;
+	@Test
+	public void createCustomizeCluster() {
+		load(MockCustomizerConfig.class);
+		assertThat(this.context.getBeanNamesForType(Cluster.class).length).isEqualTo(1);
+		assertThat(this.context.getBeanNamesForType(ClusterBuilderCustomizer.class).length).isEqualTo(1);
+	}
+
+	@Test
+	public void customizerOverridesAutoConfig() {
+		load(SimpleCustomizerConfig.class, "spring.data.cassandra.cluster-name=testcluster");
+		assertThat(this.context.getBeanNamesForType(Cluster.class).length).isEqualTo(1);
+		Cluster cluster = this.context.getBean(Cluster.class);
+		assertThat(cluster.getClusterName()).isEqualTo("overridden-name");
+	}
+
+	private void load(String... environment) {
+		load(null, environment);
+	}
+
+	private void load(Class<?> config, String... environment) {
+		AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
+		if (config != null) {
+			ctx.register(config);
+		}
+		ctx.register(PropertyPlaceholderAutoConfiguration.class, CassandraAutoConfiguration.class);
+		EnvironmentTestUtils.addEnvironment(ctx, environment);
+		ctx.refresh();
+		this.context = ctx;
+	}
+
+	@Configuration
+	static class MockCustomizerConfig {
+
+		@Bean
+		public ClusterBuilderCustomizer customizer() {
+			return mock(ClusterBuilderCustomizer.class);
+		}
+
+	}
+
+	@Configuration
+	static class SimpleCustomizerConfig {
+
+		@Bean
+		public ClusterBuilderCustomizer customizer() {
+			return new ClusterBuilderCustomizer() {
+				@Override
+				public void customize(Cluster.Builder clusterBuilder) {
+					clusterBuilder.withClusterName("overridden-name");
+				}
+			};
+		}
+
 	}
 
 }

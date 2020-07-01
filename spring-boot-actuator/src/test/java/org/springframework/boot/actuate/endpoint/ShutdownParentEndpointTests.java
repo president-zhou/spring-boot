@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,16 +24,14 @@ import org.junit.Test;
 
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.test.ApplicationContextTestUtils;
+import org.springframework.boot.test.util.ApplicationContextTestUtils;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextClosedEvent;
 
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ShutdownEndpoint}.
@@ -51,24 +49,20 @@ public class ShutdownParentEndpointTests {
 
 	@Test
 	public void shutdownChild() throws Exception {
-		this.context = new SpringApplicationBuilder(Config.class).child(Empty.class)
-				.web(false).run();
+		this.context = new SpringApplicationBuilder(Config.class).child(Empty.class).web(false).run();
 		CountDownLatch latch = this.context.getBean(Config.class).latch;
-		assertThat((String) getEndpointBean().invoke().get("message"),
-				startsWith("Shutting down"));
-		assertTrue(this.context.isActive());
-		assertTrue(latch.await(10, TimeUnit.SECONDS));
+		assertThat((String) getEndpointBean().invoke().get("message")).startsWith("Shutting down");
+		assertThat(this.context.isActive()).isTrue();
+		assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 	}
 
 	@Test
 	public void shutdownParent() throws Exception {
-		this.context = new SpringApplicationBuilder(Empty.class).child(Config.class)
-				.web(false).run();
+		this.context = new SpringApplicationBuilder(Empty.class).child(Config.class).web(false).run();
 		CountDownLatch latch = this.context.getBean(Config.class).latch;
-		assertThat((String) getEndpointBean().invoke().get("message"),
-				startsWith("Shutting down"));
-		assertTrue(this.context.isActive());
-		assertTrue(latch.await(10, TimeUnit.SECONDS));
+		assertThat((String) getEndpointBean().invoke().get("message")).startsWith("Shutting down");
+		assertThat(this.context.isActive()).isTrue();
+		assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 	}
 
 	private ShutdownEndpoint getEndpointBean() {
@@ -98,9 +92,12 @@ public class ShutdownParentEndpointTests {
 			};
 
 		}
+
 	}
 
 	@Configuration
 	public static class Empty {
+
 	}
+
 }

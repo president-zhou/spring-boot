@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import org.springframework.util.Assert;
  * to the {@literal &lt;mime-mapping&gt;} element traditionally found in web.xml.
  *
  * @author Phillip Webb
+ * @since 1.0.0
  */
 public final class MimeMappings implements Iterable<Mapping> {
 
@@ -67,6 +68,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 		mappings.add("dtd", "application/xml-dtd");
 		mappings.add("dv", "video/x-dv");
 		mappings.add("dvi", "application/x-dvi");
+		mappings.add("eot", "application/vnd.ms-fontobject");
 		mappings.add("eps", "application/postscript");
 		mappings.add("etx", "text/x-setext");
 		mappings.add("exe", "application/octet-stream");
@@ -133,6 +135,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 		mappings.add("ogv", "video/ogg");
 		mappings.add("oga", "audio/ogg");
 		mappings.add("ogg", "audio/ogg");
+		mappings.add("otf", "application/x-font-opentype");
 		mappings.add("spx", "audio/ogg");
 		mappings.add("flac", "audio/flac");
 		mappings.add("anx", "application/annodex");
@@ -164,6 +167,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 		mappings.add("roff", "text/troff");
 		mappings.add("rtf", "application/rtf");
 		mappings.add("rtx", "text/richtext");
+		mappings.add("sfnt", "application/font-sfnt");
 		mappings.add("sh", "application/x-sh");
 		mappings.add("shar", "application/x-shar");
 		mappings.add("sit", "application/x-stuffit");
@@ -184,6 +188,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 		mappings.add("tiff", "image/tiff");
 		mappings.add("tr", "text/troff");
 		mappings.add("tsv", "text/tab-separated-values");
+		mappings.add("ttf", "application/x-font-ttf");
 		mappings.add("txt", "text/plain");
 		mappings.add("ulw", "audio/basic");
 		mappings.add("ustar", "application/x-ustar");
@@ -206,6 +211,8 @@ public final class MimeMappings implements Iterable<Mapping> {
 		mappings.add("wmls", "text/vnd.wap.wmlsc");
 		mappings.add("wmlscriptc", "application/vnd.wap.wmlscriptc");
 		mappings.add("wmv", "video/x-ms-wmv");
+		mappings.add("woff", "application/font-woff");
+		mappings.add("woff2", "application/font-woff2");
 		mappings.add("wrl", "model/vrml");
 		mappings.add("wspolicy", "application/wspolicy+xml");
 		mappings.add("z", "application/x-compress");
@@ -250,8 +257,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 	 */
 	private MimeMappings(MimeMappings mappings, boolean mutable) {
 		Assert.notNull(mappings, "Mappings must not be null");
-		this.map = (mutable
-				? new LinkedHashMap<String, MimeMappings.Mapping>(mappings.map)
+		this.map = (mutable ? new LinkedHashMap<String, MimeMappings.Mapping>(mappings.map)
 				: Collections.unmodifiableMap(mappings.map));
 	}
 
@@ -276,7 +282,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 	 */
 	public String add(String extension, String mimeType) {
 		Mapping previous = this.map.put(extension, new Mapping(extension, mimeType));
-		return (previous == null ? null : previous.getMimeType());
+		return (previous != null) ? previous.getMimeType() : null;
 	}
 
 	/**
@@ -286,7 +292,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 	 */
 	public String get(String extension) {
 		Mapping mapping = this.map.get(extension);
-		return (mapping == null ? null : mapping.getMimeType());
+		return (mapping != null) ? mapping.getMimeType() : null;
 	}
 
 	/**
@@ -296,12 +302,7 @@ public final class MimeMappings implements Iterable<Mapping> {
 	 */
 	public String remove(String extension) {
 		Mapping previous = this.map.remove(extension);
-		return (previous == null ? null : previous.getMimeType());
-	}
-
-	@Override
-	public int hashCode() {
-		return this.map.hashCode();
+		return (previous != null) ? previous.getMimeType() : null;
 	}
 
 	@Override
@@ -317,6 +318,11 @@ public final class MimeMappings implements Iterable<Mapping> {
 			return this.map.equals(other.map);
 		}
 		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return this.map.hashCode();
 	}
 
 	/**
@@ -354,11 +360,6 @@ public final class MimeMappings implements Iterable<Mapping> {
 		}
 
 		@Override
-		public int hashCode() {
-			return this.extension.hashCode();
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			if (obj == null) {
 				return false;
@@ -368,16 +369,19 @@ public final class MimeMappings implements Iterable<Mapping> {
 			}
 			if (obj instanceof Mapping) {
 				Mapping other = (Mapping) obj;
-				return this.extension.equals(other.extension)
-						&& this.mimeType.equals(other.mimeType);
+				return this.extension.equals(other.extension) && this.mimeType.equals(other.mimeType);
 			}
 			return false;
 		}
 
 		@Override
+		public int hashCode() {
+			return this.extension.hashCode();
+		}
+
+		@Override
 		public String toString() {
-			return "Mapping [extension=" + this.extension + ", mimeType=" + this.mimeType
-					+ "]";
+			return "Mapping [extension=" + this.extension + ", mimeType=" + this.mimeType + "]";
 		}
 
 	}

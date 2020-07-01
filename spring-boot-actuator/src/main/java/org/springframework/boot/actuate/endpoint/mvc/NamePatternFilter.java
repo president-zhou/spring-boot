@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Utility class that can be used to filter source data using a name regular expression.
@@ -27,11 +28,11 @@ import java.util.regex.Pattern;
  * must provide implementations of {@link #getValue(Object, String)} and
  * {@link #getNames(Object, NameCallback)}.
  *
- * @param <T> The source data type
+ * @param <T> the source data type
  * @author Phillip Webb
  * @author Sergei Egorov
  * @author Andy Wilkinson
- * @since 1.3.0
+ * @author Dylian Bego
  */
 abstract class NamePatternFilter<T> {
 
@@ -44,27 +45,31 @@ abstract class NamePatternFilter<T> {
 	}
 
 	public Map<String, Object> getResults(String name) {
-		if (!isRegex(name)) {
+		Pattern pattern = compilePatternIfNecessary(name);
+		if (pattern == null) {
 			Object value = getValue(this.source, name);
 			Map<String, Object> result = new HashMap<String, Object>();
 			result.put(name, value);
 			return result;
 		}
-		Pattern pattern = Pattern.compile(name);
-		ResultCollectingNameCallback resultCollector = new ResultCollectingNameCallback(
-				pattern);
+		ResultCollectingNameCallback resultCollector = new ResultCollectingNameCallback(pattern);
 		getNames(this.source, resultCollector);
 		return resultCollector.getResults();
 
 	}
 
-	private boolean isRegex(String name) {
+	private Pattern compilePatternIfNecessary(String name) {
 		for (String part : REGEX_PARTS) {
 			if (name.contains(part)) {
-				return true;
+				try {
+					return Pattern.compile(name);
+				}
+				catch (PatternSyntaxException ex) {
+					return null;
+				}
 			}
 		}
-		return false;
+		return null;
 	}
 
 	protected abstract void getNames(T source, NameCallback callback);

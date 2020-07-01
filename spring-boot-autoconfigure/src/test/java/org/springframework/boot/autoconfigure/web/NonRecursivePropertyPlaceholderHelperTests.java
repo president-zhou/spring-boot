@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,7 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link NonRecursivePropertyPlaceholderHelper}.
@@ -30,15 +29,14 @@ import static org.junit.Assert.assertThat;
  */
 public class NonRecursivePropertyPlaceholderHelperTests {
 
-	private final NonRecursivePropertyPlaceholderHelper helper = new NonRecursivePropertyPlaceholderHelper(
-			"${", "}");
+	private final NonRecursivePropertyPlaceholderHelper helper = new NonRecursivePropertyPlaceholderHelper("${", "}");
 
 	@Test
 	public void canResolve() {
 		Properties properties = new Properties();
 		properties.put("a", "b");
 		String result = this.helper.replacePlaceholders("${a}", properties);
-		assertThat(result, equalTo("b"));
+		assertThat(result).isEqualTo("b");
 	}
 
 	@Test
@@ -47,7 +45,7 @@ public class NonRecursivePropertyPlaceholderHelperTests {
 		properties.put("a", "${b}");
 		properties.put("b", "c");
 		String result = this.helper.replacePlaceholders("${a}", properties);
-		assertThat(result, equalTo("${b}"));
+		assertThat(result).isEqualTo("${b}");
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,10 +20,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -45,11 +42,11 @@ public class SilentExitExceptionHandlerTests {
 		};
 		SilentExitExceptionHandler.setup(testThread);
 		testThread.startAndJoin();
-		assertThat(testThread.getThrown(), nullValue());
+		assertThat(testThread.getThrown()).isNull();
 	}
 
 	@Test
-	public void doesntInterferWithOtherExceptions() throws Exception {
+	public void doesntInterfereWithOtherExceptions() throws Exception {
 		TestThread testThread = new TestThread() {
 			@Override
 			public void run() {
@@ -58,7 +55,7 @@ public class SilentExitExceptionHandlerTests {
 		};
 		SilentExitExceptionHandler.setup(testThread);
 		testThread.startAndJoin();
-		assertThat(testThread.getThrown().getMessage(), equalTo("Expected"));
+		assertThat(testThread.getThrown().getMessage()).isEqualTo("Expected");
 	}
 
 	@Test
@@ -70,7 +67,7 @@ public class SilentExitExceptionHandlerTests {
 			TestSilentExitExceptionHandler silentExitExceptionHandler = new TestSilentExitExceptionHandler();
 			silentExitExceptionHandler.uncaughtException(Thread.currentThread(), ex);
 			try {
-				assertTrue(silentExitExceptionHandler.nonZeroExitCodePrevented);
+				assertThat(silentExitExceptionHandler.nonZeroExitCodePrevented).isTrue();
 			}
 			finally {
 				silentExitExceptionHandler.cleanUp();
@@ -79,7 +76,7 @@ public class SilentExitExceptionHandlerTests {
 
 	}
 
-	private static abstract class TestThread extends Thread {
+	private abstract static class TestThread extends Thread {
 
 		private Throwable thrown;
 
@@ -103,8 +100,7 @@ public class SilentExitExceptionHandlerTests {
 
 	}
 
-	private static class TestSilentExitExceptionHandler
-			extends SilentExitExceptionHandler {
+	private static class TestSilentExitExceptionHandler extends SilentExitExceptionHandler {
 
 		private boolean nonZeroExitCodePrevented;
 

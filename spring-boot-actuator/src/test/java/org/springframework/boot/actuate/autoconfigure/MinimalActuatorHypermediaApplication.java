@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,10 +22,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.springframework.boot.autoconfigure.PropertyPlaceholderAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.test.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.EmbeddedServletContainerAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.ErrorMvcAutoConfiguration;
@@ -44,14 +44,11 @@ import org.springframework.context.annotation.Configuration;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Configuration
-@ImportAutoConfiguration({ ServerPropertiesAutoConfiguration.class,
-		ManagementServerPropertiesAutoConfiguration.class,
-		EmbeddedServletContainerAutoConfiguration.class,
-		DispatcherServletAutoConfiguration.class, JacksonAutoConfiguration.class,
-		HttpMessageConvertersAutoConfiguration.class, WebMvcAutoConfiguration.class,
-		HypermediaAutoConfiguration.class, EndpointAutoConfiguration.class,
-		EndpointWebMvcAutoConfiguration.class, ErrorMvcAutoConfiguration.class,
-		PropertyPlaceholderAutoConfiguration.class })
+@ImportAutoConfiguration({ ServerPropertiesAutoConfiguration.class, ManagementServerPropertiesAutoConfiguration.class,
+		EmbeddedServletContainerAutoConfiguration.class, DispatcherServletAutoConfiguration.class,
+		JacksonAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class, WebMvcAutoConfiguration.class,
+		HypermediaAutoConfiguration.class, EndpointAutoConfiguration.class, EndpointWebMvcAutoConfiguration.class,
+		ErrorMvcAutoConfiguration.class, PropertyPlaceholderAutoConfiguration.class, AuditAutoConfiguration.class })
 public @interface MinimalActuatorHypermediaApplication {
 
 }

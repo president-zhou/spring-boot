@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,25 +29,25 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.impl.StaticLoggerBinder;
 
 import org.springframework.boot.logging.LoggingInitializationContext;
-import org.springframework.boot.test.EnvironmentTestUtils;
-import org.springframework.boot.test.OutputCapture;
+import org.springframework.boot.testutil.InternalOutputCapture;
 import org.springframework.mock.env.MockEnvironment;
+import org.springframework.test.context.support.TestPropertySourceUtils;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link SpringBootJoranConfigurator}.
  *
  * @author Phillip Webb
  * @author Eddú Meléndez
+ * @author Stephane Nicoll
  */
 public class SpringBootJoranConfiguratorTests {
 
 	@Rule
-	public OutputCapture out = new OutputCapture();
+	public InternalOutputCapture out = new InternalOutputCapture();
 
 	private MockEnvironment environment;
 
@@ -128,20 +128,43 @@ public class SpringBootJoranConfiguratorTests {
 
 	@Test
 	public void springProperty() throws Exception {
-		EnvironmentTestUtils.addEnvironment(this.environment, "my.example-property:test");
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.environment, "my.example-property=test");
 		initialize("property.xml");
-		assertThat(this.context.getProperty("MINE"), equalTo("test"));
+		assertThat(this.context.getProperty("MINE")).isEqualTo("test");
 	}
 
 	@Test
 	public void relaxedSpringProperty() throws Exception {
-		EnvironmentTestUtils.addEnvironment(this.environment, "my.EXAMPLE_PROPERTY:test");
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.environment, "my.EXAMPLE_PROPERTY=test");
 		initialize("property.xml");
-		assertThat(this.context.getProperty("MINE"), equalTo("test"));
+		assertThat(this.context.getProperty("MINE")).isEqualTo("test");
 	}
 
-	private void doTestNestedProfile(boolean expected, String... profiles)
-			throws JoranException {
+	@Test
+	public void springPropertyNoValue() throws Exception {
+		initialize("property.xml");
+		assertThat(this.context.getProperty("SIMPLE")).isNull();
+	}
+
+	@Test
+	public void relaxedSpringPropertyNoValue() throws Exception {
+		initialize("property.xml");
+		assertThat(this.context.getProperty("MINE")).isNull();
+	}
+
+	@Test
+	public void springPropertyWithDefaultValue() throws Exception {
+		initialize("property-default-value.xml");
+		assertThat(this.context.getProperty("SIMPLE")).isEqualTo("foo");
+	}
+
+	@Test
+	public void relaxedSpringPropertyWithDefaultValue() throws Exception {
+		initialize("property-default-value.xml");
+		assertThat(this.context.getProperty("MINE")).isEqualTo("bar");
+	}
+
+	private void doTestNestedProfile(boolean expected, String... profiles) throws JoranException {
 		this.environment.setActiveProfiles(profiles);
 		initialize("nested.xml");
 		this.logger.trace("Hello");

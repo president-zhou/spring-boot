@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,7 @@ package org.springframework.boot.cli.compiler.dependencies;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -43,28 +41,25 @@ public class DependencyManagementArtifactCoordinatesResolverTests {
 	@Before
 	public void setup() {
 		this.dependencyManagement = mock(DependencyManagement.class);
-		given(this.dependencyManagement.find("a1"))
-				.willReturn(new Dependency("g1", "a1", "0"));
+		given(this.dependencyManagement.find("a1")).willReturn(new Dependency("g1", "a1", "0"));
 		given(this.dependencyManagement.getSpringBootVersion()).willReturn("1");
-		this.resolver = new DependencyManagementArtifactCoordinatesResolver(
-				this.dependencyManagement);
+		this.resolver = new DependencyManagementArtifactCoordinatesResolver(this.dependencyManagement);
 	}
 
 	@Test
 	public void getGroupIdForBootArtifact() throws Exception {
-		assertThat(this.resolver.getGroupId("spring-boot-something"),
-				equalTo("org.springframework.boot"));
+		assertThat(this.resolver.getGroupId("spring-boot-something")).isEqualTo("org.springframework.boot");
 		verify(this.dependencyManagement, never()).find(anyString());
 	}
 
 	@Test
 	public void getGroupIdFound() throws Exception {
-		assertThat(this.resolver.getGroupId("a1"), equalTo("g1"));
+		assertThat(this.resolver.getGroupId("a1")).isEqualTo("g1");
 	}
 
 	@Test
 	public void getGroupIdNotFound() throws Exception {
-		assertThat(this.resolver.getGroupId("a2"), nullValue());
+		assertThat(this.resolver.getGroupId("a2")).isNull();
 	}
 
 }

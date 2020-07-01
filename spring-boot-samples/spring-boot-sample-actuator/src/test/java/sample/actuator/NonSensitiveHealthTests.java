@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,39 +19,35 @@ package sample.actuator;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.SpringApplicationConfiguration;
-import org.springframework.boot.test.TestRestTemplate;
-import org.springframework.boot.test.WebIntegrationTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for /health with {@code endpoints.health.sensitive=false}.
  *
  * @author Phillip Webb
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(SampleActuatorApplication.class)
-@WebIntegrationTest(value = { "endpoints.health.sensitive=false" }, randomPort = true)
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = { "endpoints.health.sensitive=false" })
 @DirtiesContext
 public class NonSensitiveHealthTests {
 
-	@Value("${local.server.port}")
-	private int port;
+	@Autowired
+	private TestRestTemplate restTemplate;
 
 	@Test
 	public void testSecureHealth() throws Exception {
-		ResponseEntity<String> entity = new TestRestTemplate()
-				.getForEntity("http://localhost:" + this.port + "/health", String.class);
-		assertEquals(HttpStatus.OK, entity.getStatusCode());
-		assertFalse("Wrong body: " + entity.getBody(),
-				entity.getBody().contains("\"hello\":1"));
+		ResponseEntity<String> entity = this.restTemplate.getForEntity("/health", String.class);
+		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(entity.getBody()).doesNotContain("\"hello\":1");
 	}
 
 }

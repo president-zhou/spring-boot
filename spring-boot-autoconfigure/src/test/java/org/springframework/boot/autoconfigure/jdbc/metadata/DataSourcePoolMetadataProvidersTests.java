@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,8 +25,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 /**
@@ -60,20 +59,17 @@ public class DataSourcePoolMetadataProvidersTests {
 	@Before
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
-		given(this.firstProvider.getDataSourcePoolMetadata(this.firstDataSource))
-				.willReturn(this.first);
-		given(this.firstProvider.getDataSourcePoolMetadata(this.secondDataSource))
-				.willReturn(this.second);
+		given(this.firstProvider.getDataSourcePoolMetadata(this.firstDataSource)).willReturn(this.first);
+		given(this.firstProvider.getDataSourcePoolMetadata(this.secondDataSource)).willReturn(this.second);
 	}
 
 	@Test
 	public void createWithProviders() {
 		DataSourcePoolMetadataProviders provider = new DataSourcePoolMetadataProviders(
 				Arrays.asList(this.firstProvider, this.secondProvider));
-		assertSame(this.first, provider.getDataSourcePoolMetadata(this.firstDataSource));
-		assertSame(this.second,
-				provider.getDataSourcePoolMetadata(this.secondDataSource));
-		assertNull(provider.getDataSourcePoolMetadata(this.unknownDataSource));
+		assertThat(provider.getDataSourcePoolMetadata(this.firstDataSource)).isSameAs(this.first);
+		assertThat(provider.getDataSourcePoolMetadata(this.secondDataSource)).isSameAs(this.second);
+		assertThat(provider.getDataSourcePoolMetadata(this.unknownDataSource)).isNull();
 	}
 
 }

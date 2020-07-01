@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,9 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.boot.devtools.settings.DevToolsSettings;
 import org.springframework.util.StringUtils;
 
@@ -41,16 +44,20 @@ import org.springframework.util.StringUtils;
  */
 final class ChangeableUrls implements Iterable<URL> {
 
+	private static final Log logger = LogFactory.getLog(ChangeableUrls.class);
+
 	private final List<URL> urls;
 
 	private ChangeableUrls(URL... urls) {
 		DevToolsSettings settings = DevToolsSettings.get();
 		List<URL> reloadableUrls = new ArrayList<URL>(urls.length);
 		for (URL url : urls) {
-			if ((settings.isRestartInclude(url) || isFolderUrl(url.toString()))
-					&& !settings.isRestartExclude(url)) {
+			if ((settings.isRestartInclude(url) || isFolderUrl(url.toString())) && !settings.isRestartExclude(url)) {
 				reloadableUrls.add(url);
 			}
+		}
+		if (logger.isDebugEnabled()) {
+			logger.debug("Matching URLs for reloading : " + reloadableUrls);
 		}
 		this.urls = Collections.unmodifiableList(reloadableUrls);
 	}
@@ -92,17 +99,15 @@ final class ChangeableUrls implements Iterable<URL> {
 
 	private static List<URL> getUrlsFromClassPathOfJarManifestIfPossible(URL url) {
 		JarFile jarFile = getJarFileIfPossible(url);
-		if (jarFile != null) {
-			try {
-				return getUrlsFromClassPathAttribute(url, jarFile.getManifest());
-			}
-			catch (IOException ex) {
-				throw new IllegalStateException(
-						"Failed to read Class-Path attribute from manifest of jar " + url,
-						ex);
-			}
+		if (jarFile == null) {
+			return Collections.<URL>emptyList();
 		}
-		return Collections.<URL>emptyList();
+		try {
+			return getUrlsFromManifestClassPathAttribute(url, jarFile);
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Failed to read Class-Path attribute from manifest of jar " + url, ex);
+		}
 	}
 
 	private static JarFile getJarFileIfPossible(URL url) {
@@ -118,25 +123,36 @@ final class ChangeableUrls implements Iterable<URL> {
 		return null;
 	}
 
-	private static List<URL> getUrlsFromClassPathAttribute(URL base, Manifest manifest) {
+	private static List<URL> getUrlsFromManifestClassPathAttribute(URL jarUrl, JarFile jarFile) throws IOException {
+		Manifest manifest = jarFile.getManifest();
 		if (manifest == null) {
 			return Collections.<URL>emptyList();
 		}
-		String classPathAttribute = manifest.getMainAttributes()
-				.getValue(Attributes.Name.CLASS_PATH);
-		if (!StringUtils.hasText(classPathAttribute)) {
-			return Collections.<URL>emptyList();
+		String classPath = manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH);
+		if (!StringUtils.hasText(classPath)) {
+			return Collections.emptyList();
 		}
-		List<URL> urls = new ArrayList<URL>();
-		for (String entry : StringUtils.delimitedListToStringArray(classPathAttribute,
-				" ")) {
+		String[] entries = StringUtils.delimitedListToStringArray(classPath, " ");
+		List<URL> urls = new ArrayList<URL>(entries.length);
+		List<URL> nonExistentEntries = new ArrayList<URL>();
+		for (String entry : entries) {
 			try {
-				urls.add(new URL(base, entry));
+				URL referenced = new URL(jarUrl, entry);
+				if (new File(referenced.getFile()).exists()) {
+					urls.add(referenced);
+				}
+				else {
+					nonExistentEntries.add(referenced);
+				}
 			}
 			catch (MalformedURLException ex) {
-				throw new IllegalStateException(
-						"Class-Path attribute contains malformed URL", ex);
+				throw new IllegalStateException("Class-Path attribute contains malformed URL", ex);
 			}
+		}
+		if (!nonExistentEntries.isEmpty()) {
+			System.out.println("The Class-Path manifest attribute in " + jarFile.getName()
+					+ " referenced one or more files that do not exist: "
+					+ StringUtils.collectionToCommaDelimitedString(nonExistentEntries));
 		}
 		return urls;
 	}

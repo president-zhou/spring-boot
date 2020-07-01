@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.boot.autoconfigure.mobile;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -40,31 +39,37 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
  * {@link DeviceResolver}.
  *
  * @author Roy Clarkson
+ * @since 1.0.0
  */
 @Configuration
-@ConditionalOnClass({ DeviceResolverHandlerInterceptor.class,
-		DeviceHandlerMethodArgumentResolver.class })
+@ConditionalOnClass({ DeviceResolverHandlerInterceptor.class, DeviceHandlerMethodArgumentResolver.class })
 @AutoConfigureAfter(WebMvcAutoConfiguration.class)
+@ConditionalOnWebApplication
 public class DeviceResolverAutoConfiguration {
 
-	@Configuration
-	@ConditionalOnWebApplication
-	@Order(0)
-	protected static class DeviceResolverMvcConfiguration
-			extends WebMvcConfigurerAdapter {
+	@Bean
+	@ConditionalOnMissingBean(DeviceResolverHandlerInterceptor.class)
+	public DeviceResolverHandlerInterceptor deviceResolverHandlerInterceptor() {
+		return new DeviceResolverHandlerInterceptor();
+	}
 
-		@Autowired
+	@Bean
+	public DeviceHandlerMethodArgumentResolver deviceHandlerMethodArgumentResolver() {
+		return new DeviceHandlerMethodArgumentResolver();
+	}
+
+	@Configuration
+	@Order(0)
+	protected static class DeviceResolverMvcConfiguration extends WebMvcConfigurerAdapter {
+
 		private DeviceResolverHandlerInterceptor deviceResolverHandlerInterceptor;
 
-		@Bean
-		@ConditionalOnMissingBean(DeviceResolverHandlerInterceptor.class)
-		public DeviceResolverHandlerInterceptor deviceResolverHandlerInterceptor() {
-			return new DeviceResolverHandlerInterceptor();
-		}
+		private DeviceHandlerMethodArgumentResolver deviceHandlerMethodArgumentResolver;
 
-		@Bean
-		public DeviceHandlerMethodArgumentResolver deviceHandlerMethodArgumentResolver() {
-			return new DeviceHandlerMethodArgumentResolver();
+		protected DeviceResolverMvcConfiguration(DeviceResolverHandlerInterceptor deviceResolverHandlerInterceptor,
+				DeviceHandlerMethodArgumentResolver deviceHandlerMethodArgumentResolver) {
+			this.deviceResolverHandlerInterceptor = deviceResolverHandlerInterceptor;
+			this.deviceHandlerMethodArgumentResolver = deviceHandlerMethodArgumentResolver;
 		}
 
 		@Override
@@ -73,9 +78,8 @@ public class DeviceResolverAutoConfiguration {
 		}
 
 		@Override
-		public void addArgumentResolvers(
-				List<HandlerMethodArgumentResolver> argumentResolvers) {
-			argumentResolvers.add(deviceHandlerMethodArgumentResolver());
+		public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
+			argumentResolvers.add(this.deviceHandlerMethodArgumentResolver);
 		}
 
 	}

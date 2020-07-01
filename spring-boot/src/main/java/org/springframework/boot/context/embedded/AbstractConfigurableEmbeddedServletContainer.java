@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,13 +18,19 @@ package org.springframework.boot.context.embedded;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.boot.web.servlet.ErrorPage;
+import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -37,13 +43,13 @@ import org.springframework.util.ClassUtils;
  * @author Stephane Nicoll
  * @author Ivan Sopov
  * @author Eddú Meléndez
+ * @author Brian Clozel
+ * @since 1.0.0
  * @see AbstractEmbeddedServletContainerFactory
  */
-public abstract class AbstractConfigurableEmbeddedServletContainer
-		implements ConfigurableEmbeddedServletContainer {
+public abstract class AbstractConfigurableEmbeddedServletContainer implements ConfigurableEmbeddedServletContainer {
 
-	private static final int DEFAULT_SESSION_TIMEOUT = (int) TimeUnit.MINUTES
-			.toSeconds(30);
+	private static final int DEFAULT_SESSION_TIMEOUT = (int) TimeUnit.MINUTES.toSeconds(30);
 
 	private String contextPath = "";
 
@@ -71,11 +77,15 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 
 	private Ssl ssl;
 
+	private SslStoreProvider sslStoreProvider;
+
 	private JspServlet jspServlet = new JspServlet();
 
 	private Compression compression;
 
 	private String serverHeader;
+
+	private Map<Locale, Charset> localeCharsetMappings = new HashMap<Locale, Charset>();
 
 	/**
 	 * Create a new {@link AbstractConfigurableEmbeddedServletContainer} instance.
@@ -114,12 +124,10 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 		Assert.notNull(contextPath, "ContextPath must not be null");
 		if (contextPath.length() > 0) {
 			if ("/".equals(contextPath)) {
-				throw new IllegalArgumentException(
-						"Root ContextPath must be specified using an empty string");
+				throw new IllegalArgumentException("Root ContextPath must be specified using an empty string");
 			}
 			if (!contextPath.startsWith("/") || contextPath.endsWith("/")) {
-				throw new IllegalArgumentException(
-						"ContextPath must start with '/' and not end with '/'");
+				throw new IllegalArgumentException("ContextPath must start with '/' and not end with '/'");
 			}
 		}
 	}
@@ -232,7 +240,7 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 	}
 
 	@Override
-	public void setErrorPages(Set<ErrorPage> errorPages) {
+	public void setErrorPages(Set<? extends ErrorPage> errorPages) {
 		Assert.notNull(errorPages, "ErrorPages must not be null");
 		this.errorPages = new LinkedHashSet<ErrorPage>(errorPages);
 	}
@@ -270,12 +278,6 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 		this.registerDefaultServlet = registerDefaultServlet;
 	}
 
-	@Override
-	public void setRegisterJspServlet(boolean registerJspServlet) {
-		Assert.notNull(this.jspServlet);
-		this.jspServlet.setRegistered(registerJspServlet);
-	}
-
 	/**
 	 * Flag to indicate that the default servlet should be registered.
 	 * @return true if the default servlet is to be registered
@@ -294,9 +296,12 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 	}
 
 	@Override
-	public void setJspServletClassName(String jspServletClassName) {
-		Assert.notNull(this.jspServlet);
-		this.jspServlet.setClassName(jspServletClassName);
+	public void setSslStoreProvider(SslStoreProvider sslStoreProvider) {
+		this.sslStoreProvider = sslStoreProvider;
+	}
+
+	public SslStoreProvider getSslStoreProvider() {
+		return this.sslStoreProvider;
 	}
 
 	@Override
@@ -327,19 +332,31 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 	}
 
 	/**
+	 * Return the Locale to Charset mappings.
+	 * @return the charset mappings
+	 */
+	public Map<Locale, Charset> getLocaleCharsetMappings() {
+		return this.localeCharsetMappings;
+	}
+
+	@Override
+	public void setLocaleCharsetMappings(Map<Locale, Charset> localeCharsetMappings) {
+		Assert.notNull(localeCharsetMappings, "localeCharsetMappings must not be null");
+		this.localeCharsetMappings = localeCharsetMappings;
+	}
+
+	/**
 	 * Utility method that can be used by subclasses wishing to combine the specified
 	 * {@link ServletContextInitializer} parameters with those defined in this instance.
 	 * @param initializers the initializers to merge
 	 * @return a complete set of merged initializers (with the specified parameters
 	 * appearing first)
 	 */
-	protected final ServletContextInitializer[] mergeInitializers(
-			ServletContextInitializer... initializers) {
+	protected final ServletContextInitializer[] mergeInitializers(ServletContextInitializer... initializers) {
 		List<ServletContextInitializer> mergedInitializers = new ArrayList<ServletContextInitializer>();
 		mergedInitializers.addAll(Arrays.asList(initializers));
 		mergedInitializers.addAll(this.initializers);
-		return mergedInitializers
-				.toArray(new ServletContextInitializer[mergedInitializers.size()]);
+		return mergedInitializers.toArray(new ServletContextInitializer[mergedInitializers.size()]);
 	}
 
 	/**
@@ -348,8 +365,8 @@ public abstract class AbstractConfigurableEmbeddedServletContainer
 	 * @return {@code true} if the container should be registered, otherwise {@code false}
 	 */
 	protected boolean shouldRegisterJspServlet() {
-		return this.jspServlet != null && this.jspServlet.getRegistered() && ClassUtils
-				.isPresent(this.jspServlet.getClassName(), getClass().getClassLoader());
+		return this.jspServlet != null && this.jspServlet.getRegistered()
+				&& ClassUtils.isPresent(this.jspServlet.getClassName(), getClass().getClassLoader());
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +16,10 @@
 
 package org.springframework.boot.bind;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Properties;
 
 import javax.validation.Validation;
 import javax.validation.constraints.NotNull;
@@ -26,8 +28,11 @@ import org.junit.Test;
 
 import org.springframework.beans.NotWritablePropertyException;
 import org.springframework.boot.context.config.RandomValuePropertySource;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.support.StaticMessageSource;
+import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.core.io.ByteArrayResource;
@@ -37,7 +42,7 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.Validator;
 import org.springframework.validation.beanvalidation.SpringValidatorAdapter;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link PropertiesConfigurationFactory}.
@@ -56,15 +61,16 @@ public class PropertiesConfigurationFactoryTests {
 
 	@Test
 	public void testValidPropertiesLoadsWithDash() throws Exception {
+		this.ignoreUnknownFields = false;
 		Foo foo = createFoo("na-me: blah\nbar: blah");
-		assertEquals("blah", foo.bar);
-		assertEquals("blah", foo.name);
+		assertThat(foo.bar).isEqualTo("blah");
+		assertThat(foo.name).isEqualTo("blah");
 	}
 
 	@Test
 	public void testUnknownPropertyOkByDefault() throws Exception {
 		Foo foo = createFoo("hi: hello\nname: foo\nbar: blah");
-		assertEquals("blah", foo.bar);
+		assertThat(foo.bar).isEqualTo("blah");
 	}
 
 	@Test(expected = NotWritablePropertyException.class)
@@ -75,15 +81,14 @@ public class PropertiesConfigurationFactoryTests {
 
 	@Test(expected = BindException.class)
 	public void testMissingPropertyCausesValidationError() throws Exception {
-		this.validator = new SpringValidatorAdapter(
-				Validation.buildDefaultValidatorFactory().getValidator());
+		this.validator = new SpringValidatorAdapter(Validation.buildDefaultValidatorFactory().getValidator());
 		createFoo("bar: blah");
 	}
 
 	@Test
+	@Deprecated
 	public void testValidationErrorCanBeSuppressed() throws Exception {
-		this.validator = new SpringValidatorAdapter(
-				Validation.buildDefaultValidatorFactory().getValidator());
+		this.validator = new SpringValidatorAdapter(Validation.buildDefaultValidatorFactory().getValidator());
 		setupFactory();
 		this.factory.setExceptionIfInvalid(false);
 		bindFoo("bar: blah");
@@ -102,7 +107,36 @@ public class PropertiesConfigurationFactoryTests {
 		this.factory.setIgnoreUnknownFields(false);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("bar", foo.name);
+		assertThat(foo.name).isEqualTo("bar");
+	}
+
+	@Test
+	public void systemEnvironmentBindingWithDefaults() throws Exception {
+		setupFactory();
+		MutablePropertySources propertySources = new MutablePropertySources();
+		MockPropertySource propertySource = new MockPropertySource(
+				StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+		propertySource.setProperty("name", "${foo.name:bar}");
+		propertySources.addFirst(propertySource);
+		this.factory.setPropertySources(propertySources);
+		this.factory.afterPropertiesSet();
+		Foo foo = this.factory.getObject();
+		assertThat(foo.name).isEqualTo("bar");
+	}
+
+	@Test
+	public void systemEnvironmentNoResolvePlaceholders() throws Exception {
+		setupFactory();
+		MutablePropertySources propertySources = new MutablePropertySources();
+		MockPropertySource propertySource = new MockPropertySource(
+				StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+		propertySource.setProperty("name", "${foo.name:bar}");
+		propertySources.addFirst(propertySource);
+		this.factory.setPropertySources(propertySources);
+		this.factory.setResolvePlaceholders(false);
+		this.factory.afterPropertiesSet();
+		Foo foo = this.factory.getObject();
+		assertThat(foo.name).isEqualTo("${foo.name:bar}");
 	}
 
 	@Test
@@ -131,7 +165,7 @@ public class PropertiesConfigurationFactoryTests {
 		this.factory.setPropertySources(propertySources);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("blah", foo.name);
+		assertThat(foo.name).isEqualTo("blah");
 	}
 
 	@Test
@@ -146,7 +180,7 @@ public class PropertiesConfigurationFactoryTests {
 		this.factory.setPropertySources(propertySources);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("blah", foo.name);
+		assertThat(foo.name).isEqualTo("blah");
 	}
 
 	@Test
@@ -161,19 +195,34 @@ public class PropertiesConfigurationFactoryTests {
 		this.factory.setPropertySources(propertySources);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("blah", foo.name);
+		assertThat(foo.name).isEqualTo("blah");
 	}
 
 	@Test
 	public void propertyWithAllUpperCaseSuffixCanBeBound() throws Exception {
 		Foo foo = createFoo("foo-bar-u-r-i:baz");
-		assertEquals("baz", foo.fooBarURI);
+		assertThat(foo.fooBarURI).isEqualTo("baz");
 	}
 
 	@Test
 	public void propertyWithAllUpperCaseInTheMiddleCanBeBound() throws Exception {
 		Foo foo = createFoo("foo-d-l-q-bar:baz");
-		assertEquals("baz", foo.fooDLQBar);
+		assertThat(foo.fooDLQBar).isEqualTo(("baz"));
+	}
+
+	@Test
+	public void currentDirectoryCanBeBoundToFileProperty() throws Exception {
+		PropertiesConfigurationFactory<FileProperties> factory = new PropertiesConfigurationFactory<FileProperties>(
+				FileProperties.class);
+		factory.setApplicationContext(new AnnotationConfigApplicationContext());
+		factory.setConversionService(new DefaultConversionService());
+		Properties properties = PropertiesLoaderUtils.loadProperties(new ByteArrayResource("someFile: .".getBytes()));
+		MutablePropertySources propertySources = new MutablePropertySources();
+		propertySources.addFirst(new PropertiesPropertySource("test", properties));
+		factory.setPropertySources(propertySources);
+		factory.afterPropertiesSet();
+		FileProperties fileProperties = factory.getObject();
+		assertThat(fileProperties.getSomeFile()).isEqualTo(new File("."));
 	}
 
 	private Foo createFoo(final String values) throws Exception {
@@ -182,8 +231,10 @@ public class PropertiesConfigurationFactoryTests {
 	}
 
 	private Foo bindFoo(final String values) throws Exception {
-		this.factory.setProperties(PropertiesLoaderUtils
-				.loadProperties(new ByteArrayResource(values.getBytes())));
+		Properties properties = PropertiesLoaderUtils.loadProperties(new ByteArrayResource(values.getBytes()));
+		MutablePropertySources propertySources = new MutablePropertySources();
+		propertySources.addFirst(new PropertiesPropertySource("test", properties));
+		this.factory.setPropertySources(propertySources);
 		this.factory.afterPropertiesSet();
 		return this.factory.getObject();
 	}
@@ -198,6 +249,7 @@ public class PropertiesConfigurationFactoryTests {
 
 	// Foo needs to be public and to have setters for all properties
 	public static class Foo {
+
 		@NotNull
 		private String name;
 
@@ -258,6 +310,21 @@ public class PropertiesConfigurationFactoryTests {
 		public void setFooDLQBar(String fooDLQBar) {
 			this.fooDLQBar = fooDLQBar;
 		}
+
+	}
+
+	public static class FileProperties {
+
+		private File someFile;
+
+		public File getSomeFile() {
+			return this.someFile;
+		}
+
+		public void setSomeFile(File someFile) {
+			this.someFile = someFile;
+		}
+
 	}
 
 }

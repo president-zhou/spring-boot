@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,6 @@
 
 package sample.metrics.redis;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.MetricReaderPublicMetrics;
 import org.springframework.boot.actuate.endpoint.PublicMetrics;
 import org.springframework.boot.actuate.metrics.aggregate.AggregateMetricReader;
@@ -30,11 +29,14 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 @Configuration
 public class AggregateMetricsConfiguration {
 
-	@Autowired
-	private MetricExportProperties export;
+	private final MetricExportProperties export;
 
-	@Autowired
-	private RedisConnectionFactory connectionFactory;
+	private final RedisConnectionFactory connectionFactory;
+
+	public AggregateMetricsConfiguration(MetricExportProperties export, RedisConnectionFactory connectionFactory) {
+		this.export = export;
+		this.connectionFactory = connectionFactory;
+	}
 
 	@Bean
 	public PublicMetrics metricsAggregate() {
@@ -42,14 +44,12 @@ public class AggregateMetricsConfiguration {
 	}
 
 	private MetricReader globalMetricsForAggregation() {
-		return new RedisMetricRepository(this.connectionFactory,
-				this.export.getRedis().getAggregatePrefix(),
+		return new RedisMetricRepository(this.connectionFactory, this.export.getRedis().getAggregatePrefix(),
 				this.export.getRedis().getKey());
 	}
 
 	private MetricReader aggregatesMetricReader() {
-		AggregateMetricReader repository = new AggregateMetricReader(
-				globalMetricsForAggregation());
+		AggregateMetricReader repository = new AggregateMetricReader(globalMetricsForAggregation());
 		repository.setKeyPattern(this.export.getAggregate().getKeyPattern());
 		return repository;
 	}

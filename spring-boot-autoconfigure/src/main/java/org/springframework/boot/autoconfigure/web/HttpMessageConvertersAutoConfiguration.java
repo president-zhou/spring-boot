@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@ package org.springframework.boot.autoconfigure.web;
 import java.util.Collections;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -44,23 +44,27 @@ import org.springframework.http.converter.StringHttpMessageConverter;
  * @author Andy Wilkinson
  * @author Sebastien Deleuze
  * @author Stephane Nicoll
+ * @since 1.0.0
  */
 @Configuration
 @ConditionalOnClass(HttpMessageConverter.class)
 @AutoConfigureAfter({ GsonAutoConfiguration.class, JacksonAutoConfiguration.class })
-@Import({ JacksonHttpMessageConvertersConfiguration.class,
-		GsonHttpMessageConvertersConfiguration.class })
+@Import({ JacksonHttpMessageConvertersConfiguration.class, GsonHttpMessageConvertersConfiguration.class })
 public class HttpMessageConvertersAutoConfiguration {
 
 	static final String PREFERRED_MAPPER_PROPERTY = "spring.http.converters.preferred-json-mapper";
 
-	@Autowired(required = false)
-	private final List<HttpMessageConverter<?>> converters = Collections.emptyList();
+	private final List<HttpMessageConverter<?>> converters;
+
+	public HttpMessageConvertersAutoConfiguration(ObjectProvider<List<HttpMessageConverter<?>>> convertersProvider) {
+		this.converters = convertersProvider.getIfAvailable();
+	}
 
 	@Bean
 	@ConditionalOnMissingBean
 	public HttpMessageConverters messageConverters() {
-		return new HttpMessageConverters(this.converters);
+		return new HttpMessageConverters(
+				(this.converters != null) ? this.converters : Collections.<HttpMessageConverter<?>>emptyList());
 	}
 
 	@Configuration
@@ -68,14 +72,16 @@ public class HttpMessageConvertersAutoConfiguration {
 	@EnableConfigurationProperties(HttpEncodingProperties.class)
 	protected static class StringHttpMessageConverterConfiguration {
 
-		@Autowired
-		private HttpEncodingProperties encodingProperties;
+		private final HttpEncodingProperties encodingProperties;
+
+		protected StringHttpMessageConverterConfiguration(HttpEncodingProperties encodingProperties) {
+			this.encodingProperties = encodingProperties;
+		}
 
 		@Bean
 		@ConditionalOnMissingBean
 		public StringHttpMessageConverter stringHttpMessageConverter() {
-			StringHttpMessageConverter converter = new StringHttpMessageConverter(
-					this.encodingProperties.getCharset());
+			StringHttpMessageConverter converter = new StringHttpMessageConverter(this.encodingProperties.getCharset());
 			converter.setWriteAcceptCharset(false);
 			return converter;
 		}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,11 +19,16 @@ package org.springframework.boot.actuate.metrics.rich;
 import org.junit.Test;
 
 import org.springframework.boot.actuate.metrics.Metric;
+import org.springframework.boot.actuate.metrics.writer.Delta;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 /**
+ * Tests for {@link InMemoryRichGaugeRepository}.
+ *
  * @author Dave Syer
+ * @author Andy Wilkinson
  */
 public class InMemoryRichGaugeRepositoryTests {
 
@@ -33,8 +38,23 @@ public class InMemoryRichGaugeRepositoryTests {
 	public void writeAndRead() {
 		this.repository.set(new Metric<Double>("foo", 1d));
 		this.repository.set(new Metric<Double>("foo", 2d));
-		assertEquals(2L, this.repository.findOne("foo").getCount());
-		assertEquals(2d, this.repository.findOne("foo").getValue(), 0.01);
+		assertThat(this.repository.findOne("foo").getCount()).isEqualTo(2L);
+		assertThat(this.repository.findOne("foo").getValue()).isEqualTo(2d, offset(0.01));
+	}
+
+	@Test
+	public void incrementExisting() {
+		this.repository.set(new Metric<Double>("foo", 1d));
+		this.repository.increment(new Delta<Double>("foo", 2d));
+		assertThat(this.repository.findOne("foo").getCount()).isEqualTo(2L);
+		assertThat(this.repository.findOne("foo").getValue()).isEqualTo(3d, offset(0.01));
+	}
+
+	@Test
+	public void incrementNew() {
+		this.repository.increment(new Delta<Double>("foo", 2d));
+		assertThat(this.repository.findOne("foo").getCount()).isEqualTo(1L);
+		assertThat(this.repository.findOne("foo").getValue()).isEqualTo(2d, offset(0.01));
 	}
 
 }

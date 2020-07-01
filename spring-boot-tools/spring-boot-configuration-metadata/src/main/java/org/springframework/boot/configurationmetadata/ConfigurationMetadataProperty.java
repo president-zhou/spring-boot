@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,8 +17,6 @@
 package org.springframework.boot.configurationmetadata;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Define a configuration property. Each property is fully identified by its
@@ -44,9 +42,7 @@ public class ConfigurationMetadataProperty implements Serializable {
 
 	private Object defaultValue;
 
-	private final List<ValueHint> valueHints = new ArrayList<ValueHint>();
-
-	private final List<ValueProvider> valueProviders = new ArrayList<ValueProvider>();
+	private final Hints hints = new Hints();
 
 	private Deprecation deprecation;
 
@@ -137,23 +133,11 @@ public class ConfigurationMetadataProperty implements Serializable {
 	}
 
 	/**
-	 * The list of well-defined values, if any. If no extra {@link ValueProvider provider}
-	 * is specified, these values are to be considered a closed-set of the available
-	 * values for this item.
-	 * @return the value hints
+	 * Return the hints of this item.
+	 * @return the hints
 	 */
-	public List<ValueHint> getValueHints() {
-		return this.valueHints;
-	}
-
-	/**
-	 * The value providers that are applicable to this item. Only one
-	 * {@link ValueProvider} is enabled for an item: the first in the list that is
-	 * supported should be used.
-	 * @return the value providers
-	 */
-	public List<ValueProvider> getValueProviders() {
-		return this.valueProviders;
+	public Hints getHints() {
+		return this.hints;
 	}
 
 	/**

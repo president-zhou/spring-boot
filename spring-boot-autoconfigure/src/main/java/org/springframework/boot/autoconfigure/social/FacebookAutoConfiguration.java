@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,6 @@
 
 package org.springframework.boot.autoconfigure.social;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -59,16 +58,18 @@ public class FacebookAutoConfiguration {
 	@ConditionalOnWebApplication
 	protected static class FacebookConfigurerAdapter extends SocialAutoConfigurerAdapter {
 
-		@Autowired
-		private FacebookProperties properties;
+		private final FacebookProperties properties;
+
+		protected FacebookConfigurerAdapter(FacebookProperties properties) {
+			this.properties = properties;
+		}
 
 		@Bean
 		@ConditionalOnMissingBean(Facebook.class)
 		@Scope(value = "request", proxyMode = ScopedProxyMode.INTERFACES)
 		public Facebook facebook(ConnectionRepository repository) {
-			Connection<Facebook> connection = repository
-					.findPrimaryConnection(Facebook.class);
-			return connection != null ? connection.getApi() : null;
+			Connection<Facebook> connection = repository.findPrimaryConnection(Facebook.class);
+			return (connection != null) ? connection.getApi() : null;
 		}
 
 		@Bean(name = { "connect/facebookConnect", "connect/facebookConnected" })
@@ -79,8 +80,7 @@ public class FacebookAutoConfiguration {
 
 		@Override
 		protected ConnectionFactory<?> createConnectionFactory() {
-			return new FacebookConnectionFactory(this.properties.getAppId(),
-					this.properties.getAppSecret());
+			return new FacebookConnectionFactory(this.properties.getAppId(), this.properties.getAppSecret());
 		}
 
 	}

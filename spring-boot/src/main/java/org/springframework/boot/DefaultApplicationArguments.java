@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,17 +26,18 @@ import org.springframework.core.env.SimpleCommandLinePropertySource;
 import org.springframework.util.Assert;
 
 /**
- * Default internal implementation of {@link ApplicationArguments}.
+ * Default implementation of {@link ApplicationArguments}.
  *
  * @author Phillip Webb
+ * @since 1.4.1
  */
-class DefaultApplicationArguments implements ApplicationArguments {
+public class DefaultApplicationArguments implements ApplicationArguments {
 
 	private final Source source;
 
 	private final String[] args;
 
-	DefaultApplicationArguments(String[] args) {
+	public DefaultApplicationArguments(String[] args) {
 		Assert.notNull(args, "Args must not be null");
 		this.source = new Source(args);
 		this.args = args;
@@ -61,7 +62,7 @@ class DefaultApplicationArguments implements ApplicationArguments {
 	@Override
 	public List<String> getOptionValues(String name) {
 		List<String> values = this.source.getOptionValues(name);
-		return (values == null ? null : Collections.unmodifiableList(values));
+		return (values != null) ? Collections.unmodifiableList(values) : null;
 	}
 
 	@Override

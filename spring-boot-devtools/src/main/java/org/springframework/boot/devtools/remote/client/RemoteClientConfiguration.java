@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -80,11 +80,14 @@ public class RemoteClientConfiguration {
 
 	private static final Log logger = LogFactory.getLog(RemoteClientConfiguration.class);
 
-	@Autowired
-	private DevToolsProperties properties;
+	private final DevToolsProperties properties;
 
 	@Value("${remoteUrl}")
 	private String remoteUrl;
+
+	public RemoteClientConfiguration(DevToolsProperties properties) {
+		this.properties = properties;
+	}
 
 	@Bean
 	public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
@@ -93,13 +96,12 @@ public class RemoteClientConfiguration {
 
 	@Bean
 	public ClientHttpRequestFactory clientHttpRequestFactory() {
-		List<ClientHttpRequestInterceptor> interceptors = Arrays
-				.asList(getSecurityInterceptor());
+		List<ClientHttpRequestInterceptor> interceptors = Arrays.asList(getSecurityInterceptor());
 		SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
 		Proxy proxy = this.properties.getRemote().getProxy();
 		if (proxy.getHost() != null && proxy.getPort() != null) {
-			requestFactory.setProxy(new java.net.Proxy(Type.HTTP,
-					new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+			requestFactory
+					.setProxy(new java.net.Proxy(Type.HTTP, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
 		}
 		return new InterceptingClientHttpRequestFactory(requestFactory, interceptors);
 	}
@@ -109,16 +111,14 @@ public class RemoteClientConfiguration {
 		String secretHeaderName = remoteProperties.getSecretHeaderName();
 		String secret = remoteProperties.getSecret();
 		Assert.state(secret != null,
-				"The environment value 'spring.devtools.remote.secret' "
-						+ "is required to secure your connection.");
+				"The environment value 'spring.devtools.remote.secret' " + "is required to secure your connection.");
 		return new HttpHeaderInterceptor(secretHeaderName, secret);
 	}
 
 	@PostConstruct
 	private void logWarnings() {
 		RemoteDevToolsProperties remoteProperties = this.properties.getRemote();
-		if (!remoteProperties.getDebug().isEnabled()
-				&& !remoteProperties.getRestart().isEnabled()) {
+		if (!remoteProperties.getDebug().isEnabled() && !remoteProperties.getRestart().isEnabled()) {
 			logger.warn("Remote restart and debug are both disabled.");
 		}
 		if (!this.remoteUrl.startsWith("https://")) {
@@ -130,6 +130,7 @@ public class RemoteClientConfiguration {
 	/**
 	 * LiveReload configuration.
 	 */
+	@Configuration
 	@ConditionalOnProperty(prefix = "spring.devtools.livereload", name = "enabled", matchIfMissing = true)
 	static class LiveReloadConfiguration {
 
@@ -158,8 +159,8 @@ public class RemoteClientConfiguration {
 		@EventListener
 		public void onClassPathChanged(ClassPathChangedEvent event) {
 			String url = this.remoteUrl + this.properties.getRemote().getContextPath();
-			this.executor.execute(new DelayedLiveReloadTrigger(optionalLiveReloadServer(),
-					this.clientHttpRequestFactory, url));
+			this.executor.execute(
+					new DelayedLiveReloadTrigger(optionalLiveReloadServer(), this.clientHttpRequestFactory, url));
 		}
 
 		@Bean
@@ -176,6 +177,7 @@ public class RemoteClientConfiguration {
 	/**
 	 * Client configuration for remote update and restarts.
 	 */
+	@Configuration
 	@ConditionalOnProperty(prefix = "spring.devtools.remote.restart", name = "enabled", matchIfMissing = true)
 	static class RemoteRestartClientConfiguration {
 
@@ -192,8 +194,7 @@ public class RemoteClientConfiguration {
 			if (urls == null) {
 				urls = new URL[0];
 			}
-			return new ClassPathFileSystemWatcher(getFileSystemWatcherFactory(),
-					classPathRestartStrategy(), urls);
+			return new ClassPathFileSystemWatcher(getFileSystemWatcherFactory(), classPathRestartStrategy(), urls);
 		}
 
 		@Bean
@@ -210,8 +211,7 @@ public class RemoteClientConfiguration {
 
 		private FileSystemWatcher newFileSystemWatcher() {
 			Restart restartProperties = this.properties.getRestart();
-			FileSystemWatcher watcher = new FileSystemWatcher(true,
-					restartProperties.getPollInterval(),
+			FileSystemWatcher watcher = new FileSystemWatcher(true, restartProperties.getPollInterval(),
 					restartProperties.getQuietPeriod());
 			String triggerFile = restartProperties.getTriggerFile();
 			if (StringUtils.hasLength(triggerFile)) {
@@ -222,15 +222,12 @@ public class RemoteClientConfiguration {
 
 		@Bean
 		public ClassPathRestartStrategy classPathRestartStrategy() {
-			return new PatternClassPathRestartStrategy(
-					this.properties.getRestart().getAllExclude());
+			return new PatternClassPathRestartStrategy(this.properties.getRestart().getAllExclude());
 		}
 
 		@Bean
-		public ClassPathChangeUploader classPathChangeUploader(
-				ClientHttpRequestFactory requestFactory) {
-			String url = this.remoteUrl + this.properties.getRemote().getContextPath()
-					+ "/restart";
+		public ClassPathChangeUploader classPathChangeUploader(ClientHttpRequestFactory requestFactory) {
+			String url = this.remoteUrl + this.properties.getRemote().getContextPath() + "/restart";
 			return new ClassPathChangeUploader(url, requestFactory);
 		}
 
@@ -239,6 +236,7 @@ public class RemoteClientConfiguration {
 	/**
 	 * Client configuration for remote debug HTTP tunneling.
 	 */
+	@Configuration
 	@ConditionalOnProperty(prefix = "spring.devtools.remote.debug", name = "enabled", matchIfMissing = true)
 	@ConditionalOnClass(Filter.class)
 	@Conditional(LocalDebugPortAvailableCondition.class)
@@ -251,8 +249,7 @@ public class RemoteClientConfiguration {
 		private String remoteUrl;
 
 		@Bean
-		public TunnelClient remoteDebugTunnelClient(
-				ClientHttpRequestFactory requestFactory) {
+		public TunnelClient remoteDebugTunnelClient(ClientHttpRequestFactory requestFactory) {
 			RemoteDevToolsProperties remoteProperties = this.properties.getRemote();
 			String url = this.remoteUrl + remoteProperties.getContextPath() + "/debug";
 			TunnelConnection connection = new HttpTunnelConnection(url, requestFactory);

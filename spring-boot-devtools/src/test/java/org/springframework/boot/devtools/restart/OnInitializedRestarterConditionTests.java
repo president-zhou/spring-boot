@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,8 +27,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -51,18 +50,16 @@ public class OnInitializedRestarterConditionTests {
 	@Test
 	public void noInstance() throws Exception {
 		Restarter.clearInstance();
-		ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(
-				Config.class);
-		assertThat(context.containsBean("bean"), equalTo(false));
+		ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+		assertThat(context.containsBean("bean")).isFalse();
 		context.close();
 	}
 
 	@Test
 	public void noInitialization() throws Exception {
 		Restarter.initialize(new String[0], false, RestartInitializer.NONE);
-		ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(
-				Config.class);
-		assertThat(context.containsBean("bean"), equalTo(false));
+		ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+		assertThat(context.containsBean("bean")).isFalse();
 		context.close();
 	}
 
@@ -88,9 +85,8 @@ public class OnInitializedRestarterConditionTests {
 			RestartInitializer initializer = mock(RestartInitializer.class);
 			given(initializer.getInitialUrls((Thread) any())).willReturn(new URL[0]);
 			Restarter.initialize(new String[0], false, initializer);
-			ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(
-					Config.class);
-			assertThat(context.containsBean("bean"), equalTo(true));
+			ConfigurableApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+			assertThat(context.containsBean("bean")).isTrue();
 			context.close();
 			synchronized (wait) {
 				wait.notify();

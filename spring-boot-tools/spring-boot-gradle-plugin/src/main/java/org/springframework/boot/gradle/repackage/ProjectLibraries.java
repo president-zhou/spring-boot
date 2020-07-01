@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.boot.gradle.repackage;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -50,6 +51,8 @@ class ProjectLibraries implements Libraries {
 
 	private final boolean excludeDevtools;
 
+	private final TargetConfigurationResolver targetConfigurationResolver;
+
 	private String providedConfigurationName = "providedRuntime";
 
 	private String customConfigurationName = null;
@@ -60,11 +63,20 @@ class ProjectLibraries implements Libraries {
 	 * @param extension the extension
 	 * @param excludeDevTools whether Spring Boot Devtools should be excluded
 	 */
-	ProjectLibraries(Project project, SpringBootPluginExtension extension,
-			boolean excludeDevTools) {
+	ProjectLibraries(Project project, SpringBootPluginExtension extension, boolean excludeDevTools) {
 		this.project = project;
 		this.extension = extension;
 		this.excludeDevtools = excludeDevTools;
+		this.targetConfigurationResolver = createTargetConfigurationResolver();
+	}
+
+	private static TargetConfigurationResolver createTargetConfigurationResolver() {
+		try {
+			return new Gradle3TargetConfigurationResolver(ProjectDependency.class.getMethod("getTargetConfiguration"));
+		}
+		catch (Exception ex) {
+			return new Gradle2TargetConfigurationResolver();
+		}
 	}
 
 	/**
@@ -81,65 +93,54 @@ class ProjectLibraries implements Libraries {
 
 	@Override
 	public void doWithLibraries(LibraryCallback callback) throws IOException {
-		Set<GradleLibrary> custom = getLibraries(this.customConfigurationName,
-				LibraryScope.CUSTOM);
+		Set<GradleLibrary> custom = getLibraries(this.customConfigurationName, LibraryScope.CUSTOM);
 		if (custom != null) {
 			libraries(custom, callback);
 		}
 		else {
-			Set<GradleLibrary> compile = getLibraries("compile", LibraryScope.COMPILE);
 			Set<GradleLibrary> runtime = getLibraries("runtime", LibraryScope.RUNTIME);
-			runtime = minus(runtime, compile);
-			Set<GradleLibrary> provided = getLibraries(this.providedConfigurationName,
-					LibraryScope.PROVIDED);
+			Set<GradleLibrary> provided = getLibraries(this.providedConfigurationName, LibraryScope.PROVIDED);
 			if (provided != null) {
-				compile = minus(compile, provided);
 				runtime = minus(runtime, provided);
 			}
-			libraries(compile, callback);
 			libraries(runtime, callback);
 			libraries(provided, callback);
 		}
 	}
 
-	private Set<GradleLibrary> getLibraries(String configurationName,
-			LibraryScope scope) {
-		Configuration configuration = (configurationName == null ? null
-				: this.project.getConfigurations().findByName(configurationName));
+	private Set<GradleLibrary> getLibraries(String configurationName, LibraryScope scope) {
+		Configuration configuration = (configurationName != null)
+				? this.project.getConfigurations().findByName(configurationName) : null;
 		if (configuration == null) {
 			return null;
 		}
 		Set<GradleLibrary> libraries = new LinkedHashSet<GradleLibrary>();
-		for (ResolvedArtifact artifact : configuration.getResolvedConfiguration()
-				.getResolvedArtifacts()) {
+		for (ResolvedArtifact artifact : configuration.getResolvedConfiguration().getResolvedArtifacts()) {
 			libraries.add(new ResolvedArtifactLibrary(artifact, scope));
 		}
 		libraries.addAll(getLibrariesForFileDependencies(configuration, scope));
 		return libraries;
 	}
 
-	private Set<GradleLibrary> getLibrariesForFileDependencies(
-			Configuration configuration, LibraryScope scope) {
+	private Set<GradleLibrary> getLibrariesForFileDependencies(Configuration configuration, LibraryScope scope) {
 		Set<GradleLibrary> libraries = new LinkedHashSet<GradleLibrary>();
 		for (Dependency dependency : configuration.getIncoming().getDependencies()) {
 			if (dependency instanceof FileCollectionDependency) {
 				FileCollectionDependency fileDependency = (FileCollectionDependency) dependency;
 				for (File file : fileDependency.resolve()) {
-					libraries.add(
-							new GradleLibrary(fileDependency.getGroup(), file, scope));
+					libraries.add(new GradleLibrary(fileDependency.getGroup(), file, scope));
 				}
 			}
 			else if (dependency instanceof ProjectDependency) {
 				ProjectDependency projectDependency = (ProjectDependency) dependency;
 				libraries.addAll(getLibrariesForFileDependencies(
-						projectDependency.getProjectConfiguration(), scope));
+						this.targetConfigurationResolver.resolveTargetConfiguration(projectDependency), scope));
 			}
 		}
 		return libraries;
 	}
 
-	private Set<GradleLibrary> minus(Set<GradleLibrary> source,
-			Set<GradleLibrary> toRemove) {
+	private Set<GradleLibrary> minus(Set<GradleLibrary> source, Set<GradleLibrary> toRemove) {
 		if (source == null || toRemove == null) {
 			return source;
 		}
@@ -156,8 +157,7 @@ class ProjectLibraries implements Libraries {
 		return result;
 	}
 
-	private void libraries(Set<GradleLibrary> libraries, LibraryCallback callback)
-			throws IOException {
+	private void libraries(Set<GradleLibrary> libraries, LibraryCallback callback) throws IOException {
 		if (libraries != null) {
 			Set<String> duplicates = getDuplicates(libraries);
 			for (GradleLibrary library : libraries) {
@@ -221,11 +221,6 @@ class ProjectLibraries implements Libraries {
 		}
 
 		@Override
-		public int hashCode() {
-			return getFile().hashCode();
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			if (obj instanceof GradleLibrary) {
 				return getFile().equals(((GradleLibrary) obj).getFile());
@@ -234,9 +229,15 @@ class ProjectLibraries implements Libraries {
 		}
 
 		@Override
+		public int hashCode() {
+			return getFile().hashCode();
+		}
+
+		@Override
 		public String toString() {
 			return getFile().getAbsolutePath();
 		}
+
 	}
 
 	/**
@@ -247,8 +248,7 @@ class ProjectLibraries implements Libraries {
 		private final ResolvedArtifact artifact;
 
 		ResolvedArtifactLibrary(ResolvedArtifact artifact, LibraryScope scope) {
-			super(artifact.getModuleVersion().getId().getGroup(), artifact.getFile(),
-					scope);
+			super(artifact.getModuleVersion().getId().getGroup(), artifact.getFile(), scope);
 			this.artifact = artifact;
 		}
 
@@ -256,10 +256,56 @@ class ProjectLibraries implements Libraries {
 		public boolean isUnpackRequired() {
 			if (ProjectLibraries.this.extension.getRequiresUnpack() != null) {
 				ModuleVersionIdentifier id = this.artifact.getModuleVersion().getId();
-				return ProjectLibraries.this.extension.getRequiresUnpack()
-						.contains(id.getGroup() + ":" + id.getName());
+				return ProjectLibraries.this.extension.getRequiresUnpack().contains(id.getGroup() + ":" + id.getName());
 			}
 			return false;
+		}
+
+	}
+
+	/**
+	 * Strategy used to resolve configurations regardless of the underlying Gradle
+	 * version.
+	 */
+	private interface TargetConfigurationResolver {
+
+		Configuration resolveTargetConfiguration(ProjectDependency projectDependency);
+
+	}
+
+	/**
+	 * {@link TargetConfigurationResolver} for Gradle 2.x.
+	 */
+	private static final class Gradle2TargetConfigurationResolver implements TargetConfigurationResolver {
+
+		@Override
+		public Configuration resolveTargetConfiguration(ProjectDependency projectDependency) {
+			return projectDependency.getProjectConfiguration();
+		}
+
+	}
+
+	/**
+	 * {@link TargetConfigurationResolver} for Gradle 3.x.
+	 */
+	private static final class Gradle3TargetConfigurationResolver implements TargetConfigurationResolver {
+
+		private final Method getTargetConfiguration;
+
+		private Gradle3TargetConfigurationResolver(Method getTargetConfiguration) {
+			this.getTargetConfiguration = getTargetConfiguration;
+		}
+
+		@Override
+		public Configuration resolveTargetConfiguration(ProjectDependency projectDependency) {
+			try {
+				String configurationName = (String) this.getTargetConfiguration.invoke(projectDependency);
+				return projectDependency.getDependencyProject().getConfigurations()
+						.getByName((configurationName != null) ? configurationName : Dependency.DEFAULT_CONFIGURATION);
+			}
+			catch (Exception ex) {
+				throw new RuntimeException("Failed to get target configuration", ex);
+			}
 		}
 
 	}

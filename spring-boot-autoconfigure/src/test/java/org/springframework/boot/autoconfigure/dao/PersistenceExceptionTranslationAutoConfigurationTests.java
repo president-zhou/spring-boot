@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import org.springframework.boot.autoconfigure.jdbc.EmbeddedDataSourceConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-import org.springframework.boot.test.EnvironmentTestUtils;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,16 +34,13 @@ import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.stereotype.Repository;
 
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- *
  * Tests for {@link PersistenceExceptionTranslationAutoConfiguration}
  *
  * @author Andy Wilkinson
+ * @author Stephane Nicoll
  */
 public class PersistenceExceptionTranslationAutoConfigurationTests {
 
@@ -57,39 +54,47 @@ public class PersistenceExceptionTranslationAutoConfigurationTests {
 	}
 
 	@Test
-	public void exceptionTranslationPostProcessorBeanIsCreated() {
-		this.context = new AnnotationConfigApplicationContext(
-				PersistenceExceptionTranslationAutoConfiguration.class);
+	public void exceptionTranslationPostProcessorUsesCglibByDefault() {
+		this.context = new AnnotationConfigApplicationContext(PersistenceExceptionTranslationAutoConfiguration.class);
 		Map<String, PersistenceExceptionTranslationPostProcessor> beans = this.context
 				.getBeansOfType(PersistenceExceptionTranslationPostProcessor.class);
-		assertThat(beans.size(), is(equalTo(1)));
-		assertThat(beans.values().iterator().next().isProxyTargetClass(), equalTo(true));
+		assertThat(beans).hasSize(1);
+		assertThat(beans.values().iterator().next().isProxyTargetClass()).isTrue();
 	}
 
 	@Test
-	public void exceptionTranslationPostProcessorBeanIsDisabled() {
+	public void exceptionTranslationPostProcessorCanBeConfiguredToUseJdkProxy() {
 		this.context = new AnnotationConfigApplicationContext();
-		EnvironmentTestUtils.addEnvironment(this.context,
-				"spring.dao.exceptiontranslation.enabled=false");
+		EnvironmentTestUtils.addEnvironment(this.context, "spring.aop.proxyTargetClass=false");
 		this.context.register(PersistenceExceptionTranslationAutoConfiguration.class);
 		this.context.refresh();
 		Map<String, PersistenceExceptionTranslationPostProcessor> beans = this.context
 				.getBeansOfType(PersistenceExceptionTranslationPostProcessor.class);
-		assertThat(beans.entrySet(), empty());
+		assertThat(beans).hasSize(1);
+		assertThat(beans.values().iterator().next().isProxyTargetClass()).isFalse();
+	}
+
+	@Test
+	public void exceptionTranslationPostProcessorCanBeDisabled() {
+		this.context = new AnnotationConfigApplicationContext();
+		EnvironmentTestUtils.addEnvironment(this.context, "spring.dao.exceptiontranslation.enabled=false");
+		this.context.register(PersistenceExceptionTranslationAutoConfiguration.class);
+		this.context.refresh();
+		Map<String, PersistenceExceptionTranslationPostProcessor> beans = this.context
+				.getBeansOfType(PersistenceExceptionTranslationPostProcessor.class);
+		assertThat(beans.entrySet()).isEmpty();
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void persistOfNullThrowsIllegalArgumentExceptionWithoutExceptionTranslation() {
-		this.context = new AnnotationConfigApplicationContext(
-				EmbeddedDataSourceConfiguration.class,
+		this.context = new AnnotationConfigApplicationContext(EmbeddedDataSourceConfiguration.class,
 				HibernateJpaAutoConfiguration.class, TestConfiguration.class);
 		this.context.getBean(TestRepository.class).doSomething();
 	}
 
 	@Test(expected = InvalidDataAccessApiUsageException.class)
 	public void persistOfNullThrowsInvalidDataAccessApiUsageExceptionWithExceptionTranslation() {
-		this.context = new AnnotationConfigApplicationContext(
-				EmbeddedDataSourceConfiguration.class,
+		this.context = new AnnotationConfigApplicationContext(EmbeddedDataSourceConfiguration.class,
 				HibernateJpaAutoConfiguration.class, TestConfiguration.class,
 				PersistenceExceptionTranslationAutoConfiguration.class);
 		this.context.getBean(TestRepository.class).doSomething();
@@ -102,6 +107,7 @@ public class PersistenceExceptionTranslationAutoConfigurationTests {
 		public TestRepository testRepository(EntityManagerFactory entityManagerFactory) {
 			return new TestRepository(entityManagerFactory.createEntityManager());
 		}
+
 	}
 
 	@Repository
@@ -116,6 +122,7 @@ public class PersistenceExceptionTranslationAutoConfigurationTests {
 		public void doSomething() {
 			this.entityManager.persist(null);
 		}
+
 	}
 
 }

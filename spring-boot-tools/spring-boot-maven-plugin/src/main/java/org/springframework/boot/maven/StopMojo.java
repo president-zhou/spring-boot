@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 
 /**
  * Stop a spring application that has been started by the "start" goal. Typically invoked
@@ -41,9 +42,17 @@ import org.apache.maven.plugins.annotations.Parameter;
 public class StopMojo extends AbstractMojo {
 
 	/**
-	 * Flag to indicate if the run processes should be forked. Must be aligned to the
-	 * value used to {@link StartMojo start} the process
-	 * @since 1.2
+	 * The Maven project.
+	 * @since 1.4.1
+	 */
+	@Parameter(defaultValue = "${project}", readonly = true, required = true)
+	private MavenProject project;
+
+	/**
+	 * Flag to indicate if process to stop was forked. By default, the value is inherited
+	 * from the {@link MavenProject}. If it is set, it must match the value used to
+	 * {@link StartMojo start} the process.
+	 * @since 1.3.0
 	 */
 	@Parameter(property = "fork")
 	private Boolean fork;
@@ -66,7 +75,7 @@ public class StopMojo extends AbstractMojo {
 	 * Skip the execution.
 	 * @since 1.3.2
 	 */
-	@Parameter(defaultValue = "false")
+	@Parameter(property = "skip", defaultValue = "false")
 	private boolean skip;
 
 	@Override
@@ -77,7 +86,7 @@ public class StopMojo extends AbstractMojo {
 		}
 		getLog().info("Stopping application...");
 		try {
-			if (Boolean.TRUE.equals(this.fork)) {
+			if (isForked()) {
 				stopForkedProcess();
 			}
 			else {
@@ -90,8 +99,15 @@ public class StopMojo extends AbstractMojo {
 		}
 	}
 
-	private void stopForkedProcess()
-			throws IOException, MojoFailureException, MojoExecutionException {
+	private boolean isForked() {
+		if (this.fork != null) {
+			return this.fork;
+		}
+		String property = this.project.getProperties().getProperty("_spring.boot.fork.enabled");
+		return Boolean.valueOf(property);
+	}
+
+	private void stopForkedProcess() throws IOException, MojoFailureException, MojoExecutionException {
 		JMXConnector connector = SpringApplicationAdminClient.connect(this.jmxPort);
 		try {
 			MBeanServerConnection connection = connector.getMBeanServerConnection();
@@ -106,16 +122,13 @@ public class StopMojo extends AbstractMojo {
 		doStop(ManagementFactory.getPlatformMBeanServer());
 	}
 
-	private void doStop(MBeanServerConnection connection)
-			throws IOException, MojoExecutionException {
+	private void doStop(MBeanServerConnection connection) throws IOException, MojoExecutionException {
 		try {
 			new SpringApplicationAdminClient(connection, this.jmxName).stop();
 		}
 		catch (InstanceNotFoundException ex) {
-			throw new MojoExecutionException(
-					"Spring application lifecycle JMX bean not found (fork is " + ""
-							+ this.fork + "). Could not stop application gracefully",
-					ex);
+			throw new MojoExecutionException("Spring application lifecycle JMX bean not found (fork is " + ""
+					+ this.fork + "). Could not stop application gracefully", ex);
 		}
 	}
 

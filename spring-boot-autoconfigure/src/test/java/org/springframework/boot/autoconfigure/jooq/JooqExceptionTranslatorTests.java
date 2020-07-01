@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,9 +29,7 @@ import org.mockito.ArgumentCaptor;
 
 import org.springframework.jdbc.BadSqlGrammarException;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -60,7 +58,8 @@ public class JooqExceptionTranslatorTests {
 				new Object[] { SQLDialect.POSTGRES, sqlException("03000") },
 				new Object[] { SQLDialect.POSTGRES_9_3, sqlException("03000") },
 				new Object[] { SQLDialect.POSTGRES_9_4, sqlException("03000") },
-				new Object[] { SQLDialect.POSTGRES_9_5, sqlException("03000") } };
+				new Object[] { SQLDialect.POSTGRES_9_5, sqlException("03000") },
+				new Object[] { SQLDialect.SQLITE, sqlException("21000") } };
 	}
 
 	private static SQLException sqlException(String sqlState) {
@@ -85,10 +84,9 @@ public class JooqExceptionTranslatorTests {
 		given(configuration.dialect()).willReturn(this.dialect);
 		given(context.sqlException()).willReturn(this.sqlException);
 		this.exceptionTranslator.exception(context);
-		ArgumentCaptor<RuntimeException> captor = ArgumentCaptor
-				.forClass(RuntimeException.class);
+		ArgumentCaptor<RuntimeException> captor = ArgumentCaptor.forClass(RuntimeException.class);
 		verify(context).exception(captor.capture());
-		assertThat(captor.getValue(), is(instanceOf(BadSqlGrammarException.class)));
+		assertThat(captor.getValue()).isInstanceOf(BadSqlGrammarException.class);
 	}
 
 }

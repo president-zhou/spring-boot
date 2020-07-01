@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,6 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -52,14 +51,15 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketMessagingAutoConfiguration {
 
 	@Configuration
-	@ConditionalOnBean({ DelegatingWebSocketMessageBrokerConfiguration.class,
-			ObjectMapper.class })
+	@ConditionalOnBean({ DelegatingWebSocketMessageBrokerConfiguration.class, ObjectMapper.class })
 	@ConditionalOnClass({ ObjectMapper.class, AbstractMessageBrokerConfiguration.class })
-	static class WebSocketMessageConverterConfiguration
-			extends AbstractWebSocketMessageBrokerConfigurer {
+	static class WebSocketMessageConverterConfiguration extends AbstractWebSocketMessageBrokerConfigurer {
 
-		@Autowired
-		private ObjectMapper objectMapper;
+		private final ObjectMapper objectMapper;
+
+		WebSocketMessageConverterConfiguration(ObjectMapper objectMapper) {
+			this.objectMapper = objectMapper;
+		}
 
 		@Override
 		public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -67,8 +67,7 @@ public class WebSocketMessagingAutoConfiguration {
 		}
 
 		@Override
-		public boolean configureMessageConverters(
-				List<MessageConverter> messageConverters) {
+		public boolean configureMessageConverters(List<MessageConverter> messageConverters) {
 			MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
 			converter.setObjectMapper(this.objectMapper);
 			DefaultContentTypeResolver resolver = new DefaultContentTypeResolver();

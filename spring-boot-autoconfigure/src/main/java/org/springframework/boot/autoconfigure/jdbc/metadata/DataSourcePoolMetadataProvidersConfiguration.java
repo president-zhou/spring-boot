@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@ package org.springframework.boot.autoconfigure.jdbc.metadata;
 import javax.sql.DataSource;
 
 import com.zaxxer.hikari.HikariDataSource;
-import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
@@ -43,11 +43,9 @@ public class DataSourcePoolMetadataProvidersConfiguration {
 		public DataSourcePoolMetadataProvider tomcatPoolDataSourceMetadataProvider() {
 			return new DataSourcePoolMetadataProvider() {
 				@Override
-				public DataSourcePoolMetadata getDataSourcePoolMetadata(
-						DataSource dataSource) {
+				public DataSourcePoolMetadata getDataSourcePoolMetadata(DataSource dataSource) {
 					if (dataSource instanceof org.apache.tomcat.jdbc.pool.DataSource) {
-						return new TomcatDataSourcePoolMetadata(
-								(org.apache.tomcat.jdbc.pool.DataSource) dataSource);
+						return new TomcatDataSourcePoolMetadata((org.apache.tomcat.jdbc.pool.DataSource) dataSource);
 					}
 					return null;
 				}
@@ -64,11 +62,30 @@ public class DataSourcePoolMetadataProvidersConfiguration {
 		public DataSourcePoolMetadataProvider hikariPoolDataSourceMetadataProvider() {
 			return new DataSourcePoolMetadataProvider() {
 				@Override
-				public DataSourcePoolMetadata getDataSourcePoolMetadata(
-						DataSource dataSource) {
+				public DataSourcePoolMetadata getDataSourcePoolMetadata(DataSource dataSource) {
 					if (dataSource instanceof HikariDataSource) {
-						return new HikariDataSourcePoolMetadata(
-								(HikariDataSource) dataSource);
+						return new HikariDataSourcePoolMetadata((HikariDataSource) dataSource);
+					}
+					return null;
+				}
+			};
+		}
+
+	}
+
+	@Configuration
+	@ConditionalOnClass(org.apache.commons.dbcp.BasicDataSource.class)
+	@Deprecated
+	static class CommonsDbcpPoolDataSourceMetadataProviderConfiguration {
+
+		@Bean
+		public DataSourcePoolMetadataProvider commonsDbcpPoolDataSourceMetadataProvider() {
+			return new DataSourcePoolMetadataProvider() {
+				@Override
+				public DataSourcePoolMetadata getDataSourcePoolMetadata(DataSource dataSource) {
+					if (dataSource instanceof org.apache.commons.dbcp.BasicDataSource) {
+						return new CommonsDbcpDataSourcePoolMetadata(
+								(org.apache.commons.dbcp.BasicDataSource) dataSource);
 					}
 					return null;
 				}
@@ -79,38 +96,15 @@ public class DataSourcePoolMetadataProvidersConfiguration {
 
 	@Configuration
 	@ConditionalOnClass(BasicDataSource.class)
-	static class CommonsDbcpPoolDataSourceMetadataProviderConfiguration {
-
-		@Bean
-		public DataSourcePoolMetadataProvider commonsDbcpPoolDataSourceMetadataProvider() {
-			return new DataSourcePoolMetadataProvider() {
-				@Override
-				public DataSourcePoolMetadata getDataSourcePoolMetadata(
-						DataSource dataSource) {
-					if (dataSource instanceof BasicDataSource) {
-						return new CommonsDbcpDataSourcePoolMetadata(
-								(BasicDataSource) dataSource);
-					}
-					return null;
-				}
-			};
-		}
-
-	}
-
-	@Configuration
-	@ConditionalOnClass(org.apache.commons.dbcp2.BasicDataSource.class)
 	static class CommonsDbcp2PoolDataSourceMetadataProviderConfiguration {
 
 		@Bean
 		public DataSourcePoolMetadataProvider commonsDbcp2PoolDataSourceMetadataProvider() {
 			return new DataSourcePoolMetadataProvider() {
 				@Override
-				public DataSourcePoolMetadata getDataSourcePoolMetadata(
-						DataSource dataSource) {
-					if (dataSource instanceof org.apache.commons.dbcp2.BasicDataSource) {
-						return new CommonsDbcp2DataSourcePoolMetadata(
-								(org.apache.commons.dbcp2.BasicDataSource) dataSource);
+				public DataSourcePoolMetadata getDataSourcePoolMetadata(DataSource dataSource) {
+					if (dataSource instanceof BasicDataSource) {
+						return new CommonsDbcp2DataSourcePoolMetadata((BasicDataSource) dataSource);
 					}
 					return null;
 				}

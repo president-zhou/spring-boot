@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.boot.autoconfigure.cache;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -34,7 +33,6 @@ import org.springframework.data.redis.core.RedisTemplate;
  * Redis cache configuration.
  *
  * @author Stephane Nicoll
- * @since 1.3.0
  */
 @Configuration
 @AutoConfigureAfter(RedisAutoConfiguration.class)
@@ -43,15 +41,19 @@ import org.springframework.data.redis.core.RedisTemplate;
 @Conditional(CacheCondition.class)
 class RedisCacheConfiguration {
 
-	@Autowired
-	private CacheProperties cacheProperties;
+	private final CacheProperties cacheProperties;
 
-	@Autowired
-	private CacheManagerCustomizers customizerInvoker;
+	private final CacheManagerCustomizers customizerInvoker;
+
+	RedisCacheConfiguration(CacheProperties cacheProperties, CacheManagerCustomizers customizerInvoker) {
+		this.cacheProperties = cacheProperties;
+		this.customizerInvoker = customizerInvoker;
+	}
 
 	@Bean
 	public RedisCacheManager cacheManager(RedisTemplate<Object, Object> redisTemplate) {
 		RedisCacheManager cacheManager = new RedisCacheManager(redisTemplate);
+		cacheManager.setUsePrefix(true);
 		List<String> cacheNames = this.cacheProperties.getCacheNames();
 		if (!cacheNames.isEmpty()) {
 			cacheManager.setCacheNames(cacheNames);

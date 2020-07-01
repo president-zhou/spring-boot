@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,10 +23,9 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.springframework.boot.test.OutputCapture;
+import org.springframework.boot.test.rule.OutputCapture;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for bootRun's resource handling
@@ -50,19 +49,18 @@ public class BootRunResourceTests {
 	@Test
 	public void resourcesDirectlyFromSource() {
 		project.newBuild().forTasks("clean", "bootRun")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PaddResources=true")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PaddResources=true").setStandardOutput(System.out)
 				.run();
 
-		assertThat(this.output.toString(), containsString("src/main/resources/test.txt"));
+		assertThat(this.output.toString()).contains("src/main/resources/test.txt");
 	}
 
 	@Test
 	public void resourcesFromBuildOutput() {
 		project.newBuild().forTasks("clean", "bootRun")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PaddResources=false")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PaddResources=false").setStandardOutput(System.out)
 				.run();
-		assertThat(this.output.toString(),
-				containsString("build/resources/main/test.txt"));
+		assertThat(this.output.toString()).contains("build/resources/main/test.txt");
 	}
 
 }

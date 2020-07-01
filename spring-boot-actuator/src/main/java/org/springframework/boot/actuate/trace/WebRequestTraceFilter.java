@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,9 +20,13 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -48,6 +52,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * @author Dave Syer
  * @author Wallace Wadge
  * @author Andy Wilkinson
+ * @author Venil Noronha
+ * @author Madhura Bhave
+ * @since 1.0.0
  */
 public class WebRequestTraceFilter extends OncePerRequestFilter implements Ordered {
 
@@ -64,17 +71,6 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 	private ErrorAttributes errorAttributes;
 
 	private final TraceProperties properties;
-
-	/**
-	 * Create a new {@link WebRequestTraceFilter} instance.
-	 * @param traceRepository the trace repository.
-	 * @deprecated since 1.3.0 in favor of
-	 * {@link #WebRequestTraceFilter(TraceRepository, TraceProperties)}
-	 */
-	@Deprecated
-	public WebRequestTraceFilter(TraceRepository traceRepository) {
-		this(traceRepository, new TraceProperties());
-	}
 
 	/**
 	 * Create a new {@link WebRequestTraceFilter} instance.
@@ -105,9 +101,9 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 	}
 
 	@Override
-	protected void doFilterInternal(HttpServletRequest request,
-			HttpServletResponse response, FilterChain filterChain)
-					throws ServletException, IOException {
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
+		long startTime = System.nanoTime();
 		Map<String, Object> trace = getTrace(request);
 		logTrace(request, trace);
 		int status = HttpStatus.INTERNAL_SERVER_ERROR.value();
@@ -116,16 +112,23 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 			status = response.getStatus();
 		}
 		finally {
-			enhanceTrace(trace, status == response.getStatus() ? response
-					: new CustomStatusResponseWrapper(response, status));
+			addTimeTaken(trace, startTime);
+			addSessionIdIfNecessary(request, trace);
+			enhanceTrace(trace,
+					(status != response.getStatus()) ? new CustomStatusResponseWrapper(response, status) : response);
 			this.repository.add(trace);
 		}
 	}
 
-	protected Map<String, Object> getTrace(HttpServletRequest request) {
+	private void addSessionIdIfNecessary(HttpServletRequest request, Map<String, Object> trace) {
 		HttpSession session = request.getSession(false);
-		Throwable exception = (Throwable) request
-				.getAttribute("javax.servlet.error.exception");
+		if (isIncluded(Include.SESSION_ID)) {
+			add(trace, "sessionId", (session != null) ? session.getId() : null);
+		}
+	}
+
+	protected Map<String, Object> getTrace(HttpServletRequest request) {
+		Throwable exception = (Throwable) request.getAttribute("javax.servlet.error.exception");
 		Principal userPrincipal = request.getUserPrincipal();
 		Map<String, Object> trace = new LinkedHashMap<String, Object>();
 		Map<String, Object> headers = new LinkedHashMap<String, Object>();
@@ -135,45 +138,92 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 		if (isIncluded(Include.REQUEST_HEADERS)) {
 			headers.put("request", getRequestHeaders(request));
 		}
-		add(trace, Include.PATH_INFO, "pathInfo", request.getPathInfo());
-		add(trace, Include.PATH_TRANSLATED, "pathTranslated",
-				request.getPathTranslated());
-		add(trace, Include.CONTEXT_PATH, "contextPath", request.getContextPath());
-		add(trace, Include.USER_PRINCIPAL, "userPrincipal",
-				(userPrincipal == null ? null : userPrincipal.getName()));
-		if (isIncluded(Include.PARAMETERS)) {
-			trace.put("parameters", request.getParameterMap());
+		if (isIncluded(Include.PATH_INFO)) {
+			add(trace, "pathInfo", request.getPathInfo());
 		}
-		add(trace, Include.QUERY_STRING, "query", request.getQueryString());
-		add(trace, Include.AUTH_TYPE, "authType", request.getAuthType());
-		add(trace, Include.REMOTE_ADDRESS, "remoteAddress", request.getRemoteAddr());
-		add(trace, Include.SESSION_ID, "sessionId",
-				(session == null ? null : session.getId()));
-		add(trace, Include.REMOTE_USER, "remoteUser", request.getRemoteUser());
-		if (isIncluded(Include.ERRORS) && exception != null
-				&& this.errorAttributes != null) {
-			trace.put("error", this.errorAttributes
-					.getErrorAttributes(new ServletRequestAttributes(request), true));
+		if (isIncluded(Include.PATH_TRANSLATED)) {
+			add(trace, "pathTranslated", request.getPathTranslated());
+		}
+		if (isIncluded(Include.CONTEXT_PATH)) {
+			add(trace, "contextPath", request.getContextPath());
+		}
+		if (isIncluded(Include.USER_PRINCIPAL)) {
+			add(trace, "userPrincipal", (userPrincipal != null) ? userPrincipal.getName() : null);
+		}
+		if (isIncluded(Include.PARAMETERS)) {
+			add(trace, "parameters", getParameterMapCopy(request));
+		}
+		if (isIncluded(Include.QUERY_STRING)) {
+			add(trace, "query", request.getQueryString());
+		}
+		if (isIncluded(Include.AUTH_TYPE)) {
+			add(trace, "authType", request.getAuthType());
+		}
+		if (isIncluded(Include.REMOTE_ADDRESS)) {
+			add(trace, "remoteAddress", request.getRemoteAddr());
+		}
+		if (isIncluded(Include.REMOTE_USER)) {
+			add(trace, "remoteUser", request.getRemoteUser());
+		}
+		if (isIncluded(Include.ERRORS) && exception != null && this.errorAttributes != null) {
+			add(trace, "error", this.errorAttributes.getErrorAttributes(new ServletRequestAttributes(request), true));
 		}
 		return trace;
 	}
 
 	private Map<String, Object> getRequestHeaders(HttpServletRequest request) {
 		Map<String, Object> headers = new LinkedHashMap<String, Object>();
+		Set<String> excludedHeaders = getExcludeHeaders();
 		Enumeration<String> names = request.getHeaderNames();
 		while (names.hasMoreElements()) {
 			String name = names.nextElement();
-			List<String> values = Collections.list(request.getHeaders(name));
-			Object value = values;
-			if (values.size() == 1) {
-				value = values.get(0);
+			if (!excludedHeaders.contains(name.toLowerCase(Locale.ENGLISH))) {
+				headers.put(name, getHeaderValue(request, name));
 			}
-			else if (values.isEmpty()) {
-				value = "";
-			}
-			headers.put(name, value);
 		}
+		postProcessRequestHeaders(headers);
 		return headers;
+	}
+
+	private Set<String> getExcludeHeaders() {
+		Set<String> excludedHeaders = new HashSet<String>();
+		if (!isIncluded(Include.COOKIES)) {
+			excludedHeaders.add("cookie");
+		}
+		if (!isIncluded(Include.AUTHORIZATION_HEADER)) {
+			excludedHeaders.add("authorization");
+		}
+		return excludedHeaders;
+	}
+
+	private Object getHeaderValue(HttpServletRequest request, String name) {
+		List<String> value = Collections.list(request.getHeaders(name));
+		if (value.size() == 1) {
+			return value.get(0);
+		}
+		if (value.isEmpty()) {
+			return "";
+		}
+		return value;
+	}
+
+	private Map<String, String[]> getParameterMapCopy(HttpServletRequest request) {
+		return new LinkedHashMap<String, String[]>(request.getParameterMap());
+	}
+
+	/**
+	 * Post process request headers before they are added to the trace.
+	 * @param headers a mutable map containing the request headers to trace
+	 * @since 1.4.0
+	 */
+	protected void postProcessRequestHeaders(Map<String, Object> headers) {
+	}
+
+	private void addTimeTaken(Map<String, Object> trace, long startTime) {
+		long timeTaken = System.nanoTime() - startTime;
+		if (isIncluded(Include.TIME_TAKEN)) {
+			add(trace, "timeTaken", "" + TimeUnit.NANOSECONDS.toMillis(timeTaken));
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -190,23 +240,24 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 			String value = response.getHeader(header);
 			headers.put(header, value);
 		}
+		if (!isIncluded(Include.COOKIES)) {
+			headers.remove("Set-Cookie");
+		}
 		headers.put("status", "" + response.getStatus());
 		return headers;
 	}
 
 	private void logTrace(HttpServletRequest request, Map<String, Object> trace) {
 		if (logger.isTraceEnabled()) {
-			logger.trace("Processing request " + request.getMethod() + " "
-					+ request.getRequestURI());
+			logger.trace("Processing request " + request.getMethod() + " " + request.getRequestURI());
 			if (this.dumpRequests) {
 				logger.trace("Headers: " + trace.get("headers"));
 			}
 		}
 	}
 
-	private void add(Map<String, Object> trace, Include include, String name,
-			Object value) {
-		if (isIncluded(include) && value != null) {
+	private void add(Map<String, Object> trace, String name, Object value) {
+		if (value != null) {
 			trace.put(name, value);
 		}
 	}
@@ -219,8 +270,7 @@ public class WebRequestTraceFilter extends OncePerRequestFilter implements Order
 		this.errorAttributes = errorAttributes;
 	}
 
-	private static final class CustomStatusResponseWrapper
-			extends HttpServletResponseWrapper {
+	private static final class CustomStatusResponseWrapper extends HttpServletResponseWrapper {
 
 		private final int status;
 

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,8 +19,7 @@ package org.springframework.boot.jta.atomikos;
 import com.atomikos.jdbc.AtomikosSQLException;
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -37,7 +36,7 @@ public class AtomikosDataSourceBeanTests {
 		MockAtomikosDataSourceBean bean = spy(new MockAtomikosDataSourceBean());
 		bean.setBeanName("bean");
 		bean.afterPropertiesSet();
-		assertThat(bean.getUniqueResourceName(), equalTo("bean"));
+		assertThat(bean.getUniqueResourceName()).isEqualTo("bean");
 		verify(bean).init();
 		verify(bean, never()).close();
 		bean.destroy();
@@ -52,7 +51,7 @@ public class AtomikosDataSourceBeanTests {
 		}
 
 		@Override
-		public synchronized void close() {
+		public void close() {
 		}
 
 	}

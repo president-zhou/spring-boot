@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,11 +16,20 @@
 
 package org.springframework.boot.devtools.env;
 
-import org.junit.After;
-import org.junit.Test;
+import java.net.URL;
+import java.util.Collections;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.devtools.restart.RestartInitializer;
+import org.springframework.boot.devtools.restart.Restarter;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,19 +41,27 @@ import org.springframework.context.annotation.Configuration;
  */
 public class DevToolPropertiesIntegrationTests {
 
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	private ConfigurableApplicationContext context;
+
+	@Before
+	public void setup() {
+		Restarter.initialize(new String[] {}, false, new MockInitializer(), false);
+	}
 
 	@After
 	public void cleanup() {
 		if (this.context != null) {
 			this.context.close();
 		}
+		Restarter.clearInstance();
 	}
 
 	@Test
 	public void classPropertyConditionIsAffectedByDevToolProperties() {
-		SpringApplication application = new SpringApplication(
-				ClassConditionConfiguration.class);
+		SpringApplication application = new SpringApplication(ClassConditionConfiguration.class);
 		application.setWebEnvironment(false);
 		this.context = application.run();
 		this.context.getBean(ClassConditionConfiguration.class);
@@ -52,9 +69,31 @@ public class DevToolPropertiesIntegrationTests {
 
 	@Test
 	public void beanMethodPropertyConditionIsAffectedByDevToolProperties() {
-		SpringApplication application = new SpringApplication(
-				BeanConditionConfiguration.class);
+		SpringApplication application = new SpringApplication(BeanConditionConfiguration.class);
 		application.setWebEnvironment(false);
+		this.context = application.run();
+		this.context.getBean(MyBean.class);
+	}
+
+	@Test
+	public void postProcessWhenRestarterDisabledAndRemoteSecretNotSetShouldNotAddPropertySource() throws Exception {
+		Restarter.clearInstance();
+		Restarter.disable();
+		SpringApplication application = new SpringApplication(BeanConditionConfiguration.class);
+		application.setWebEnvironment(false);
+		this.context = application.run();
+		this.thrown.expect(NoSuchBeanDefinitionException.class);
+		this.context.getBean(MyBean.class);
+	}
+
+	@Test
+	public void postProcessWhenRestarterDisabledAndRemoteSecretSetShouldAddPropertySource() throws Exception {
+		Restarter.clearInstance();
+		Restarter.disable();
+		SpringApplication application = new SpringApplication(BeanConditionConfiguration.class);
+		application.setWebEnvironment(false);
+		application.setDefaultProperties(
+				Collections.<String, Object>singletonMap("spring.devtools.remote.secret", "donttell"));
 		this.context = application.run();
 		this.context.getBean(MyBean.class);
 	}
@@ -73,9 +112,19 @@ public class DevToolPropertiesIntegrationTests {
 		public MyBean myBean() {
 			return new MyBean();
 		}
+
 	}
 
 	static class MyBean {
+
+	}
+
+	static class MockInitializer implements RestartInitializer {
+
+		@Override
+		public URL[] getInitialUrls(Thread thread) {
+			return new URL[] {};
+		}
 
 	}
 

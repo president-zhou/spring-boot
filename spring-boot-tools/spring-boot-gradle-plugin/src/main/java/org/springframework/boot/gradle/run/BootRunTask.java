@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,15 +33,15 @@ import org.springframework.boot.loader.tools.FileUtils;
  *
  * @author Dave Syer
  * @author Phillip Webb
+ * @since 1.2.7
  */
 public class BootRunTask extends JavaExec {
 
 	/**
 	 * Whether or not resources (typically in {@code src/main/resources} are added
-	 * directly to the classpath. When enabled, this allows live in-place editing
-	 * of resources. Duplicate resources are removed from the resource output
-	 * directory to prevent them from appearing twice if
-	 * {@code ClassLoader.getResources()} is called.
+	 * directly to the classpath. When enabled, this allows live in-place editing of
+	 * resources. Duplicate resources are removed from the resource output directory to
+	 * prevent them from appearing twice if {@code ClassLoader.getResources()} is called.
 	 */
 	private boolean addResources = false;
 
@@ -66,8 +66,7 @@ public class BootRunTask extends JavaExec {
 	private void addResourcesIfNecessary() {
 		if (this.addResources) {
 			SourceSet mainSourceSet = SourceSets.findMainSourceSet(getProject());
-			final File outputDir = (mainSourceSet == null ? null
-					: mainSourceSet.getOutput().getResourcesDir());
+			final File outputDir = (mainSourceSet != null) ? mainSourceSet.getOutput().getResourcesDir() : null;
 			final Set<File> resources = new LinkedHashSet<File>();
 			if (mainSourceSet != null) {
 				resources.addAll(mainSourceSet.getResources().getSrcDirs());

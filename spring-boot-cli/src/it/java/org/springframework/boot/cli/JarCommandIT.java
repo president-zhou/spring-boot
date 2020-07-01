@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,6 +36,7 @@ import static org.junit.Assert.assertTrue;
  * Integration test for {@link JarCommand}.
  *
  * @author Andy Wilkinson
+ * @author Stephane Nicoll
  */
 public class JarCommandIT {
 
@@ -98,12 +99,16 @@ public class JarCommandIT {
 
 		assertThat(invocation.getErrorOutput(), equalTo(""));
 		assertThat(invocation.getStandardOutput(), containsString("Hello World!"));
-		assertThat(invocation.getStandardOutput(), containsString("/public/public.txt"));
 		assertThat(invocation.getStandardOutput(),
-				containsString("/resources/resource.txt"));
-		assertThat(invocation.getStandardOutput(), containsString("/static/static.txt"));
+				containsString("/BOOT-INF/classes!/public/public.txt"));
 		assertThat(invocation.getStandardOutput(),
-				containsString("/templates/template.txt"));
+				containsString("/BOOT-INF/classes!/resources/resource.txt"));
+		assertThat(invocation.getStandardOutput(),
+				containsString("/BOOT-INF/classes!/static/static.txt"));
+		assertThat(invocation.getStandardOutput(),
+				containsString("/BOOT-INF/classes!/templates/template.txt"));
+		assertThat(invocation.getStandardOutput(),
+				containsString("/BOOT-INF/classes!/root.properties"));
 		assertThat(invocation.getStandardOutput(), containsString("Goodbye Mama"));
 	}
 

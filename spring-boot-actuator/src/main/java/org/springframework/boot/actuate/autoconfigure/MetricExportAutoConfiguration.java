@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.endpoint.MetricsEndpointMetricReader;
 import org.springframework.boot.actuate.metrics.export.Exporter;
@@ -55,53 +55,61 @@ import org.springframework.util.CollectionUtils;
 @EnableConfigurationProperties
 public class MetricExportAutoConfiguration {
 
-	@Autowired
-	private MetricExportProperties properties;
+	private final MetricsEndpointMetricReader endpointReader;
 
-	@Autowired(required = false)
-	private MetricsEndpointMetricReader endpointReader;
+	private final List<MetricReader> readers;
 
-	@Autowired(required = false)
-	@ExportMetricReader
-	private List<MetricReader> readers;
+	private final Map<String, GaugeWriter> writers;
 
-	@Autowired(required = false)
-	@ExportMetricWriter
-	private Map<String, GaugeWriter> writers = Collections.emptyMap();
+	private final Map<String, Exporter> exporters;
 
-	@Autowired(required = false)
-	private Map<String, Exporter> exporters = Collections.emptyMap();
-
-	@Bean
-	@ConditionalOnMissingBean(name = "metricWritersMetricExporter")
-	public SchedulingConfigurer metricWritersMetricExporter() {
-		Map<String, GaugeWriter> writers = new HashMap<String, GaugeWriter>();
-		MetricReader reader = this.endpointReader;
-		if (reader == null && !CollectionUtils.isEmpty(this.readers)) {
-			reader = new CompositeMetricReader(
-					this.readers.toArray(new MetricReader[this.readers.size()]));
-		}
-		if (reader == null && this.exporters.isEmpty()) {
-			return new NoOpSchedulingConfigurer();
-		}
-		MetricExporters exporters = new MetricExporters(this.properties);
-		if (reader != null) {
-			writers.putAll(this.writers);
-			exporters.setReader(reader);
-			exporters.setWriters(writers);
-		}
-		exporters.setExporters(this.exporters);
-		return exporters;
+	public MetricExportAutoConfiguration(MetricExportProperties properties,
+			ObjectProvider<MetricsEndpointMetricReader> endpointReader,
+			@ExportMetricReader ObjectProvider<List<MetricReader>> readers,
+			@ExportMetricWriter ObjectProvider<Map<String, GaugeWriter>> writers,
+			ObjectProvider<Map<String, Exporter>> exporters) {
+		this.endpointReader = endpointReader.getIfAvailable();
+		this.readers = readers.getIfAvailable();
+		this.writers = writers.getIfAvailable();
+		this.exporters = exporters.getIfAvailable();
 	}
 
 	@Bean
-	@ExportMetricWriter
-	@ConditionalOnMissingBean
-	@ConditionalOnProperty(prefix = "spring.metrics.export.statsd", name = "host")
-	public StatsdMetricWriter statsdMetricWriter() {
-		MetricExportProperties.Statsd statsdProperties = this.properties.getStatsd();
-		return new StatsdMetricWriter(statsdProperties.getPrefix(),
-				statsdProperties.getHost(), statsdProperties.getPort());
+	@ConditionalOnMissingBean(name = "metricWritersMetricExporter")
+	public SchedulingConfigurer metricWritersMetricExporter(MetricExportProperties properties) {
+		Map<String, GaugeWriter> writers = new HashMap<String, GaugeWriter>();
+		MetricReader reader = this.endpointReader;
+		if (reader == null && !CollectionUtils.isEmpty(this.readers)) {
+			reader = new CompositeMetricReader(this.readers.toArray(new MetricReader[this.readers.size()]));
+		}
+		if (reader == null && CollectionUtils.isEmpty(this.exporters)) {
+			return new NoOpSchedulingConfigurer();
+		}
+		MetricExporters exporters = new MetricExporters(properties);
+		if (reader != null) {
+			if (!CollectionUtils.isEmpty(this.writers)) {
+				writers.putAll(this.writers);
+			}
+			exporters.setReader(reader);
+			exporters.setWriters(writers);
+		}
+		exporters.setExporters((this.exporters != null) ? this.exporters : Collections.<String, Exporter>emptyMap());
+		return exporters;
+	}
+
+	@Configuration
+	static class StatsdConfiguration {
+
+		@Bean
+		@ExportMetricWriter
+		@ConditionalOnMissingBean
+		@ConditionalOnProperty(prefix = "spring.metrics.export.statsd", name = "host")
+		public StatsdMetricWriter statsdMetricWriter(MetricExportProperties properties) {
+			MetricExportProperties.Statsd statsdProperties = properties.getStatsd();
+			return new StatsdMetricWriter(statsdProperties.getPrefix(), statsdProperties.getHost(),
+					statsdProperties.getPort());
+		}
+
 	}
 
 	@Configuration
@@ -112,12 +120,11 @@ public class MetricExportAutoConfiguration {
 
 		private String aggregateKeyPattern = "k.d";
 
-		@Bean(name = "spring.metrics.export.CONFIGURATION_PROPERTIES")
+		@Bean(name = "spring.metrics.export-org.springframework.boot.actuate.metrics.export.MetricExportProperties")
 		@ConditionalOnMissingBean
 		public MetricExportProperties metricExportProperties() {
 			MetricExportProperties export = new MetricExportProperties();
-			export.getRedis().setPrefix("spring.metrics"
-					+ (this.prefix.length() > 0 ? "." : "") + this.prefix);
+			export.getRedis().setPrefix("spring.metrics" + ((this.prefix.length() > 0) ? "." : "") + this.prefix);
 			export.getAggregate().setPrefix(this.prefix);
 			export.getAggregate().setKeyPattern(this.aggregateKeyPattern);
 			return export;

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,7 @@
 package org.springframework.boot.context.config;
 
 import java.util.Random;
+import java.util.UUID;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -48,6 +49,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Dave Syer
  * @author Matt Benson
+ * @since 1.0.0
  */
 public class RandomValuePropertySource extends PropertySource<Random> {
 
@@ -94,6 +96,9 @@ public class RandomValuePropertySource extends PropertySource<Random> {
 		if (range != null) {
 			return getNextLongInRange(range);
 		}
+		if (type.equals("uuid")) {
+			return UUID.randomUUID().toString();
+		}
 		return getRandomBytes();
 	}
 
@@ -133,8 +138,7 @@ public class RandomValuePropertySource extends PropertySource<Random> {
 	}
 
 	public static void addToEnvironment(ConfigurableEnvironment environment) {
-		environment.getPropertySources().addAfter(
-				StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+		environment.getPropertySources().addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
 				new RandomValuePropertySource(RANDOM_PROPERTY_SOURCE_NAME));
 		logger.trace("RandomValuePropertySource add to Environment");
 	}

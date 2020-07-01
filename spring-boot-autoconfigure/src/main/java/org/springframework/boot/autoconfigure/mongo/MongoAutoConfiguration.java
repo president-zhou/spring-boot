@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,7 @@ import javax.annotation.PreDestroy;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -38,6 +38,7 @@ import org.springframework.core.env.Environment;
  * @author Dave Syer
  * @author Oliver Gierke
  * @author Phillip Webb
+ * @since 1.0.0
  */
 @Configuration
 @ConditionalOnClass(MongoClient.class)
@@ -45,16 +46,20 @@ import org.springframework.core.env.Environment;
 @ConditionalOnMissingBean(type = "org.springframework.data.mongodb.MongoDbFactory")
 public class MongoAutoConfiguration {
 
-	@Autowired
-	private MongoProperties properties;
+	private final MongoProperties properties;
 
-	@Autowired(required = false)
-	private MongoClientOptions options;
+	private final MongoClientOptions options;
 
-	@Autowired
-	private Environment environment;
+	private final Environment environment;
 
 	private MongoClient mongo;
+
+	public MongoAutoConfiguration(MongoProperties properties, ObjectProvider<MongoClientOptions> options,
+			Environment environment) {
+		this.properties = properties;
+		this.options = options.getIfAvailable();
+		this.environment = environment;
+	}
 
 	@PreDestroy
 	public void close() {

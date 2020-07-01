@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,6 @@ import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import org.springframework.boot.actuate.metrics.Metric;
 import org.springframework.http.HttpStatus;
@@ -31,6 +30,7 @@ import org.springframework.web.client.RestOperations;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -42,7 +42,7 @@ public class OpenTsdbGaugeWriterTests {
 
 	private OpenTsdbGaugeWriter writer;
 
-	private RestOperations restTemplate = Mockito.mock(RestOperations.class);
+	private RestOperations restTemplate = mock(RestOperations.class);
 
 	@Before
 	public void init() {
@@ -53,16 +53,14 @@ public class OpenTsdbGaugeWriterTests {
 	@Test
 	public void postSuccessfullyOnFlush() {
 		this.writer.set(new Metric<Double>("foo", 2.4));
-		given(this.restTemplate.postForEntity(anyString(), any(Object.class), anyMap()))
-				.willReturn(emptyResponse());
+		given(this.restTemplate.postForEntity(anyString(), any(Object.class), anyMap())).willReturn(emptyResponse());
 		this.writer.flush();
 		verify(this.restTemplate).postForEntity(anyString(), any(Object.class), anyMap());
 	}
 
 	@Test
 	public void flushAutomatically() {
-		given(this.restTemplate.postForEntity(anyString(), any(Object.class), anyMap()))
-				.willReturn(emptyResponse());
+		given(this.restTemplate.postForEntity(anyString(), any(Object.class), anyMap())).willReturn(emptyResponse());
 		this.writer.setBufferSize(0);
 		this.writer.set(new Metric<Double>("foo", 2.4));
 		verify(this.restTemplate).postForEntity(anyString(), any(Object.class), anyMap());

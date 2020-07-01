@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 
 import org.junit.Rule;
@@ -31,10 +29,7 @@ import org.junit.rules.ExpectedException;
 import org.springframework.boot.devtools.restart.classloader.ClassLoaderFile.Kind;
 import org.springframework.boot.devtools.restart.classloader.ClassLoaderFiles.SourceFolder;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -65,19 +60,19 @@ public class ClassLoaderFilesTests {
 
 	@Test
 	public void getFileWithNullName() throws Exception {
-		assertThat(this.files.getFile(null), nullValue());
+		assertThat(this.files.getFile(null)).isNull();
 	}
 
 	@Test
 	public void addAndGet() throws Exception {
 		ClassLoaderFile file = new ClassLoaderFile(Kind.ADDED, new byte[10]);
 		this.files.addFile("myfile", file);
-		assertThat(this.files.getFile("myfile"), equalTo(file));
+		assertThat(this.files.getFile("myfile")).isEqualTo(file);
 	}
 
 	@Test
 	public void getMissing() throws Exception {
-		assertThat(this.files.getFile("missing"), nullValue());
+		assertThat(this.files.getFile("missing")).isNull();
 	}
 
 	@Test
@@ -86,7 +81,7 @@ public class ClassLoaderFilesTests {
 		ClassLoaderFile file2 = new ClassLoaderFile(Kind.MODIFIED, new byte[10]);
 		this.files.addFile("myfile", file1);
 		this.files.addFile("myfile", file2);
-		assertThat(this.files.getFile("myfile"), equalTo(file2));
+		assertThat(this.files.getFile("myfile")).isEqualTo(file2);
 	}
 
 	@Test
@@ -95,9 +90,9 @@ public class ClassLoaderFilesTests {
 		ClassLoaderFile file2 = new ClassLoaderFile(Kind.MODIFIED, new byte[10]);
 		this.files.addFile("a", "myfile", file1);
 		this.files.addFile("b", "myfile", file2);
-		assertThat(this.files.getFile("myfile"), equalTo(file2));
-		assertThat(this.files.getOrCreateSourceFolder("a").getFiles().size(), equalTo(0));
-		assertThat(this.files.getOrCreateSourceFolder("b").getFiles().size(), equalTo(1));
+		assertThat(this.files.getFile("myfile")).isEqualTo(file2);
+		assertThat(this.files.getOrCreateSourceFolder("a").getFiles().size()).isEqualTo(0);
+		assertThat(this.files.getOrCreateSourceFolder("b").getFiles().size()).isEqualTo(1);
 	}
 
 	@Test
@@ -113,13 +108,11 @@ public class ClassLoaderFilesTests {
 		Iterator<SourceFolder> sourceFolders = this.files.getSourceFolders().iterator();
 		SourceFolder sourceFolder1 = sourceFolders.next();
 		SourceFolder sourceFolder2 = sourceFolders.next();
-		assertThat(sourceFolders.hasNext(), equalTo(false));
-		assertThat(sourceFolder1.getName(), equalTo("a"));
-		assertThat(sourceFolder2.getName(), equalTo("b"));
-		assertThat(new ArrayList<ClassLoaderFile>(sourceFolder1.getFiles()),
-				equalTo(Arrays.asList(file1, file2)));
-		assertThat(new ArrayList<ClassLoaderFile>(sourceFolder2.getFiles()),
-				equalTo(Arrays.asList(file3, file4)));
+		assertThat(sourceFolders.hasNext()).isFalse();
+		assertThat(sourceFolder1.getName()).isEqualTo("a");
+		assertThat(sourceFolder2.getName()).isEqualTo("b");
+		assertThat(sourceFolder1.getFiles()).containsOnly(file1, file2);
+		assertThat(sourceFolder2.getFiles()).containsOnly(file3, file4);
 	}
 
 	@Test
@@ -130,10 +123,9 @@ public class ClassLoaderFilesTests {
 		ObjectOutputStream oos = new ObjectOutputStream(bos);
 		oos.writeObject(this.files);
 		oos.close();
-		ObjectInputStream ois = new ObjectInputStream(
-				new ByteArrayInputStream(bos.toByteArray()));
+		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()));
 		ClassLoaderFiles readObject = (ClassLoaderFiles) ois.readObject();
-		assertThat(readObject.getFile("myfile"), notNullValue());
+		assertThat(readObject.getFile("myfile")).isNotNull();
 	}
 
 	@Test
@@ -149,11 +141,10 @@ public class ClassLoaderFilesTests {
 		Iterator<SourceFolder> sourceFolders = this.files.getSourceFolders().iterator();
 		SourceFolder sourceFolder1 = sourceFolders.next();
 		SourceFolder sourceFolder2 = sourceFolders.next();
-		assertThat(sourceFolders.hasNext(), equalTo(false));
-		assertThat(sourceFolder1.getName(), equalTo("a"));
-		assertThat(sourceFolder2.getName(), equalTo("b"));
-		assertThat(new ArrayList<ClassLoaderFile>(sourceFolder1.getFiles()),
-				equalTo(Arrays.asList(file1, file2)));
+		assertThat(sourceFolders.hasNext()).isFalse();
+		assertThat(sourceFolder1.getName()).isEqualTo("a");
+		assertThat(sourceFolder2.getName()).isEqualTo("b");
+		assertThat(sourceFolder1.getFiles()).containsOnly(file1, file2);
 	}
 
 	@Test
@@ -162,7 +153,7 @@ public class ClassLoaderFilesTests {
 		this.files.addFile("s1", "n2", mock(ClassLoaderFile.class));
 		this.files.addFile("s2", "n3", mock(ClassLoaderFile.class));
 		this.files.addFile("s2", "n1", mock(ClassLoaderFile.class));
-		assertThat(this.files.size(), equalTo(3));
+		assertThat(this.files.size()).isEqualTo(3);
 	}
 
 	@Test
@@ -178,8 +169,8 @@ public class ClassLoaderFilesTests {
 		this.files.addFile("s1", "n2", mock(ClassLoaderFile.class));
 		ClassLoaderFiles copy = new ClassLoaderFiles(this.files);
 		this.files.addFile("s2", "n3", mock(ClassLoaderFile.class));
-		assertThat(this.files.size(), equalTo(3));
-		assertThat(copy.size(), equalTo(2));
+		assertThat(this.files.size()).isEqualTo(3);
+		assertThat(copy.size()).isEqualTo(2);
 	}
 
 }

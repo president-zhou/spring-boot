@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,13 @@ import java.io.File;
 import java.util.Map;
 import java.util.Set;
 
+import groovy.lang.Closure;
+import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPlugin;
+
+import org.springframework.boot.gradle.buildinfo.BuildInfo;
 import org.springframework.boot.loader.tools.Layout;
+import org.springframework.boot.loader.tools.LayoutFactory;
 import org.springframework.boot.loader.tools.Layouts;
 
 /**
@@ -29,7 +35,7 @@ import org.springframework.boot.loader.tools.Layouts;
  * two of them. E.g.
  *
  * <pre>
- *     apply plugin: "spring-boot"
+ *     apply plugin: 'org.springframework.boot'
  *     springBoot {
  *         mainClass = 'org.demo.Application'
  *         layout = 'ZIP'
@@ -39,8 +45,12 @@ import org.springframework.boot.loader.tools.Layouts;
  * @author Phillip Webb
  * @author Dave Syer
  * @author Stephane Nicoll
+ * @author Andy Wilkinson
+ * @since 1.2.7
  */
 public class SpringBootPluginExtension {
+
+	private final Project project;
 
 	/**
 	 * The main class that should be run. Instead of setting this explicitly you can use
@@ -83,6 +93,12 @@ public class SpringBootPluginExtension {
 	LayoutType layout;
 
 	/**
+	 * The layout factory that will be used when no explicit layout is specified.
+	 * Alternative layouts can be provided by 3rd parties.
+	 */
+	LayoutFactory layoutFactory;
+
+	/**
 	 * Libraries that must be unpacked from fat jars in order to run. Use Strings in the
 	 * form {@literal groupId:artifactId}.
 	 */
@@ -91,7 +107,7 @@ public class SpringBootPluginExtension {
 	/**
 	 * Whether Spring Boot Devtools should be excluded from the fat jar.
 	 */
-	boolean excludeDevtools = false;
+	boolean excludeDevtools = true;
 
 	/**
 	 * Location of an agent jar to attach to the VM when running the application with
@@ -128,12 +144,16 @@ public class SpringBootPluginExtension {
 	 */
 	Map<String, String> embeddedLaunchScriptProperties;
 
+	public SpringBootPluginExtension(Project project) {
+		this.project = project;
+	}
+
 	/**
 	 * Convenience method for use in a custom task.
 	 * @return the Layout to use or null if not explicitly set
 	 */
 	public Layout convertLayout() {
-		return (this.layout == null ? null : this.layout.layout);
+		return (this.layout != null) ? this.layout.layout : null;
 	}
 
 	public String getMainClass() {
@@ -182,6 +202,14 @@ public class SpringBootPluginExtension {
 
 	public void setLayout(LayoutType layout) {
 		this.layout = layout;
+	}
+
+	public LayoutFactory getLayoutFactory() {
+		return this.layoutFactory;
+	}
+
+	public void setLayoutFactory(LayoutFactory layoutFactory) {
+		this.layoutFactory = layoutFactory;
 	}
 
 	public Set<String> getRequiresUnpack() {
@@ -244,26 +272,58 @@ public class SpringBootPluginExtension {
 		return this.embeddedLaunchScriptProperties;
 	}
 
-	public void setEmbeddedLaunchScriptProperties(
-			Map<String, String> embeddedLaunchScriptProperties) {
+	public void setEmbeddedLaunchScriptProperties(Map<String, String> embeddedLaunchScriptProperties) {
 		this.embeddedLaunchScriptProperties = embeddedLaunchScriptProperties;
+	}
+
+	public void buildInfo() {
+		this.buildInfo(null);
+	}
+
+	public void buildInfo(Closure<?> taskConfigurer) {
+		BuildInfo bootBuildInfo = this.project.getTasks().create("bootBuildInfo", BuildInfo.class);
+		this.project.getTasks().getByName(JavaPlugin.CLASSES_TASK_NAME).dependsOn(bootBuildInfo);
+		if (taskConfigurer != null) {
+			taskConfigurer.setDelegate(bootBuildInfo);
+			taskConfigurer.call();
+		}
 	}
 
 	/**
 	 * Layout Types.
 	 */
-	enum LayoutType {
+	public enum LayoutType {
 
+		/**
+		 * Executable JAR layout.
+		 */
 		JAR(new Layouts.Jar()),
 
+		/**
+		 * Executable WAR layout.
+		 */
 		WAR(new Layouts.War()),
 
+		/**
+		 * Executable expanded archive layout.
+		 */
 		ZIP(new Layouts.Expanded()),
 
+		/**
+		 * Executable expanded archive layout.
+		 */
 		DIR(new Layouts.Expanded()),
 
+		/**
+		 * Module Layout.
+		 * @deprecated as of 1.5 in favor of a custom {@link LayoutFactory}
+		 */
+		@Deprecated
 		MODULE(new Layouts.Module()),
 
+		/**
+		 * No layout.
+		 */
 		NONE(new Layouts.None());
 
 		Layout layout;

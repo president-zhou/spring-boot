@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,18 +26,18 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.PropertyPlaceholderAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.SecurityAutoConfigurationTests.WebSecurity;
-import org.springframework.boot.autoconfigure.test.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.HttpMessageConvertersAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.ServerPropertiesAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
 import org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext;
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
-import org.springframework.boot.test.EnvironmentTestUtils;
-import org.springframework.boot.test.TestRestTemplate;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -61,13 +61,11 @@ public class SecurityFilterAutoConfigurationEarlyInitializationTests {
 	public void testSecurityFilterDoesNotCauseEarlyInitialization() throws Exception {
 		AnnotationConfigEmbeddedWebApplicationContext context = new AnnotationConfigEmbeddedWebApplicationContext();
 		try {
-			EnvironmentTestUtils.addEnvironment(context, "server.port:0",
-					"security.user.password:password");
+			EnvironmentTestUtils.addEnvironment(context, "server.port:0", "security.user.password:password");
 			context.register(Config.class);
 			context.refresh();
 			int port = context.getEmbeddedServletContainer().getPort();
-			new TestRestTemplate("user", "password")
-					.getForEntity("http://localhost:" + port, Object.class);
+			new TestRestTemplate("user", "password").getForEntity("http://localhost:" + port, Object.class);
 			// If early initialization occurred a ConverterNotFoundException is thrown
 
 		}
@@ -78,14 +76,11 @@ public class SecurityFilterAutoConfigurationEarlyInitializationTests {
 	}
 
 	@Configuration
-	@Import({ DeserializerBean.class, JacksonModuleBean.class, ExampleController.class,
-			ConverterBean.class })
-	@ImportAutoConfiguration({ WebMvcAutoConfiguration.class,
-			JacksonAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class,
-			DispatcherServletAutoConfiguration.class, WebSecurity.class,
+	@Import({ DeserializerBean.class, JacksonModuleBean.class, ExampleController.class, ConverterBean.class })
+	@ImportAutoConfiguration({ WebMvcAutoConfiguration.class, JacksonAutoConfiguration.class,
+			HttpMessageConvertersAutoConfiguration.class, DispatcherServletAutoConfiguration.class, WebSecurity.class,
 			SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class,
-			ServerPropertiesAutoConfiguration.class,
-			PropertyPlaceholderAutoConfiguration.class })
+			ServerPropertiesAutoConfiguration.class, PropertyPlaceholderAutoConfiguration.class })
 	static class Config {
 
 		@Bean
@@ -114,7 +109,6 @@ public class SecurityFilterAutoConfigurationEarlyInitializationTests {
 
 		private static final long serialVersionUID = 1L;
 
-		@Autowired
 		public JacksonModuleBean(DeserializerBean myDeser) {
 			addDeserializer(SourceType.class, myDeser);
 		}
@@ -147,7 +141,6 @@ public class SecurityFilterAutoConfigurationEarlyInitializationTests {
 
 		@RequestMapping("/")
 		public void convert() {
-			System.out.println("Hello");
 			this.conversionService.convert(new SourceType(), DestinationType.class);
 		}
 

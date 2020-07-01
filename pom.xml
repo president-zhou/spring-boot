@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.springframework.boot</groupId>
 	<artifactId>spring-boot-build</artifactId>
-	<version>1.3.8.BUILD-SNAPSHOT</version>
+	<version>1.5.23.BUILD-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>Spring Boot Build</name>
 	<description>Spring Boot Build</description>
-	<url>http://projects.spring.io/spring-boot/</url>
+	<url>https://projects.spring.io/spring-boot/</url>
 	<organization>
 		<name>Pivotal Software, Inc.</name>
-		<url>http://www.spring.io</url>
+		<url>https://www.spring.io</url>
 	</organization>
 	<licenses>
 		<license>
 			<name>Apache License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0</url>
+			<url>https://www.apache.org/licenses/LICENSE-2.0</url>
 		</license>
 	</licenses>
 	<scm>
@@ -27,7 +27,7 @@
 			<name>Phillip Webb</name>
 			<email>pwebb at pivotal.io</email>
 			<organization>Pivotal Software, Inc.</organization>
-			<organizationUrl>http://www.spring.io</organizationUrl>
+			<organizationUrl>https://www.spring.io</organizationUrl>
 			<roles>
 				<role>Project lead</role>
 			</roles>
@@ -37,15 +37,12 @@
 			<name>Dave Syer</name>
 			<email>dsyer at pivotal.io</email>
 			<organization>Pivotal Software, Inc.</organization>
-			<organizationUrl>http://www.spring.io</organizationUrl>
+			<organizationUrl>https://www.spring.io</organizationUrl>
 			<roles>
 				<role>Project lead</role>
 			</roles>
 		</developer>
 	</developers>
-	<prerequisites>
-		<maven>3.2.1</maven>
-	</prerequisites>
 	<properties>
 		<main.basedir>${basedir}</main.basedir>
 	</properties>
@@ -67,7 +64,6 @@
 					<artifactId>replacer</artifactId>
 					<version>1.5.3</version>
 				</plugin>
-
 			</plugins>
 		</pluginManagement>
 	</build>
@@ -82,7 +78,9 @@
 				<module>spring-boot-parent</module>
 				<module>spring-boot-tools</module>
 				<module>spring-boot</module>
+				<module>spring-boot-test</module>
 				<module>spring-boot-autoconfigure</module>
+				<module>spring-boot-test-autoconfigure</module>
 				<module>spring-boot-actuator</module>
 				<module>spring-boot-devtools</module>
 				<module>spring-boot-docs</module>
@@ -194,8 +192,84 @@
 	</xsl:template>
 
 	<xsl:template
-		match="m:properties/m:spring-boot.version/text()">
+		match="m:build/m:pluginManagement/m:plugins/m:plugin[m:groupId/text() = 'org.springframework.boot']/m:version/text()">
 		<xsl:value-of select="/m:project/m:version/text()"/>
+	</xsl:template>
+</xsl:stylesheet>
+				]]>
+												</string>
+											</style>
+										</xslt>
+										<move file="${sourceFile}" tofile="${sourceFile}.old" />
+										<move file="${sourceFile}.new" tofile="${sourceFile}" />
+										<delete file="${sourceFile}.old" />
+									</target>
+								</configuration>
+							</execution>
+							<execution>
+								<id>fixup-starter-parent</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<inherited>false</inherited>
+								<configuration>
+									<target>
+										<property name="sourceFile" value="spring-boot-starters/spring-boot-starter-parent/pom.xml" />
+										<xslt in="${sourceFile}" out="${sourceFile}.new" force="true">
+											<style>
+												<string><![CDATA[
+<xsl:stylesheet version="2.0"
+	xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:m="http://maven.apache.org/POM/4.0.0"
+	exclude-result-prefixes="m">
+
+	<xsl:template match="node()|@*">
+		<xsl:copy>
+			<xsl:apply-templates select="node()|@*" />
+		</xsl:copy>
+	</xsl:template>
+
+	<xsl:template
+		match="m:build/m:pluginManagement/m:plugins/m:plugin[m:artifactId/text() = 'maven-shade-plugin']/m:dependencies/m:dependency[m:artifactId/text() = 'spring-boot-maven-plugin']/m:version/text()">
+		<xsl:value-of select="/m:project/m:parent/m:version/text()"/>
+	</xsl:template>
+</xsl:stylesheet>
+				]]>
+												</string>
+											</style>
+										</xslt>
+										<move file="${sourceFile}" tofile="${sourceFile}.old" />
+										<move file="${sourceFile}.new" tofile="${sourceFile}" />
+										<delete file="${sourceFile}.old" />
+									</target>
+								</configuration>
+							</execution>
+							<execution>
+								<id>fixup-sample-ant</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<inherited>false</inherited>
+								<configuration>
+									<target>
+										<property name="sourceFile" value="spring-boot-samples/spring-boot-sample-ant/pom.xml" />
+										<xslt in="${sourceFile}" out="${sourceFile}.new" force="true">
+											<style>
+												<string><![CDATA[
+<xsl:stylesheet version="2.0"
+	xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:m="http://maven.apache.org/POM/4.0.0"
+	exclude-result-prefixes="m">
+
+	<xsl:template match="node()|@*">
+		<xsl:copy>
+			<xsl:apply-templates select="node()|@*" />
+		</xsl:copy>
+	</xsl:template>
+
+	<xsl:template
+		match="m:build/m:plugins/m:plugin[m:artifactId/text() = 'maven-antrun-plugin']/m:dependencies/m:dependency[m:artifactId/text() = 'spring-boot-antlib']/m:version/text()">
+		<xsl:value-of select="/m:project/m:parent/m:version/text()"/>
 	</xsl:template>
 </xsl:stylesheet>
 				]]>
@@ -231,7 +305,7 @@
 									<includes>
 										<include>${basedir}/spring-boot-samples/**/build.gradle</include>
 									</includes>
-									<token>springBootVersion\s+.*+</token>
+									<token>springBootVersion =\s+.*+</token>
 									<value>springBootVersion = '${project.version}'</value>
 								</configuration>
 							</execution>

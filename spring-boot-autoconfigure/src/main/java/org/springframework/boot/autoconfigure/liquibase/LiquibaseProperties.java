@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,13 @@
 
 package org.springframework.boot.autoconfigure.liquibase;
 
+import java.io.File;
 import java.util.Map;
-
-import javax.validation.constraints.NotNull;
 
 import liquibase.integration.spring.SpringLiquibase;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.Assert;
 
 /**
  * Configuration properties to configure {@link SpringLiquibase}.
@@ -36,7 +36,6 @@ public class LiquibaseProperties {
 	/**
 	 * Change log configuration path.
 	 */
-	@NotNull
 	private String changeLog = "classpath:/db/changelog/db.changelog-master.yaml";
 
 	/**
@@ -90,11 +89,17 @@ public class LiquibaseProperties {
 	 */
 	private Map<String, String> parameters;
 
+	/**
+	 * File to which rollback SQL will be written when an update is performed.
+	 */
+	private File rollbackFile;
+
 	public String getChangeLog() {
 		return this.changeLog;
 	}
 
 	public void setChangeLog(String changeLog) {
+		Assert.notNull(changeLog, "ChangeLog must not be null");
 		this.changeLog = changeLog;
 	}
 
@@ -176,6 +181,14 @@ public class LiquibaseProperties {
 
 	public void setParameters(Map<String, String> parameters) {
 		this.parameters = parameters;
+	}
+
+	public File getRollbackFile() {
+		return this.rollbackFile;
+	}
+
+	public void setRollbackFile(File rollbackFile) {
+		this.rollbackFile = rollbackFile;
 	}
 
 }

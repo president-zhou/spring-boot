@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,20 +26,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.tomcat.websocket.WsWebSocketContainer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
-import org.springframework.boot.autoconfigure.test.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.EmbeddedServletContainerAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.ServerPropertiesAutoConfiguration;
 import org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext;
+import org.springframework.boot.context.embedded.ServerPortInfoApplicationContextInitializer;
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.context.web.ServerPortInfoApplicationContextInitializer;
-import org.springframework.boot.test.EnvironmentTestUtils;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.converter.CompositeMessageConverter;
@@ -68,10 +69,7 @@ import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -88,7 +86,7 @@ public class WebSocketMessagingAutoConfigurationTests {
 	@Before
 	public void setup() {
 		List<Transport> transports = Arrays.asList(
-				new WebSocketTransport(new StandardWebSocketClient()),
+				new WebSocketTransport(new StandardWebSocketClient(new WsWebSocketContainer())),
 				new RestTemplateXhrTransport(new RestTemplate()));
 		this.sockJsClient = new SockJsClient(transports);
 	}
@@ -102,34 +100,31 @@ public class WebSocketMessagingAutoConfigurationTests {
 	@Test
 	public void basicMessagingWithJsonResponse() throws Throwable {
 		Object result = performStompSubscription("/app/json");
-		assertThat(new String((byte[]) result),
-				is(equalTo(String.format("{%n  \"foo\" : 5,%n  \"bar\" : \"baz\"%n}"))));
+		assertThat(new String((byte[]) result)).isEqualTo(String.format("{%n  \"foo\" : 5,%n  \"bar\" : \"baz\"%n}"));
 	}
 
 	@Test
 	public void basicMessagingWithStringResponse() throws Throwable {
 		Object result = performStompSubscription("/app/string");
-		assertThat(new String((byte[]) result),
-				is(equalTo(String.format("string data"))));
+		assertThat(new String((byte[]) result)).isEqualTo("string data");
 	}
 
 	@Test
 	public void customizedConverterTypesMatchDefaultConverterTypes() {
 		List<MessageConverter> customizedConverters = getCustomizedConverters();
 		List<MessageConverter> defaultConverters = getDefaultConverters();
-		assertThat(customizedConverters.size(), is(equalTo(defaultConverters.size())));
+		assertThat(customizedConverters.size()).isEqualTo(defaultConverters.size());
 		Iterator<MessageConverter> customizedIterator = customizedConverters.iterator();
 		Iterator<MessageConverter> defaultIterator = defaultConverters.iterator();
 		while (customizedIterator.hasNext()) {
-			assertThat(customizedIterator.next(),
-					is(instanceOf(defaultIterator.next().getClass())));
+			assertThat(customizedIterator.next()).isInstanceOf(defaultIterator.next().getClass());
 		}
 	}
 
 	private List<MessageConverter> getCustomizedConverters() {
 		List<MessageConverter> customizedConverters = new ArrayList<MessageConverter>();
-		WebSocketMessagingAutoConfiguration.WebSocketMessageConverterConfiguration configuration = new WebSocketMessagingAutoConfiguration.WebSocketMessageConverterConfiguration();
-		ReflectionTestUtils.setField(configuration, "objectMapper", new ObjectMapper());
+		WebSocketMessagingAutoConfiguration.WebSocketMessageConverterConfiguration configuration = new WebSocketMessagingAutoConfiguration.WebSocketMessageConverterConfiguration(
+				new ObjectMapper());
 		configuration.configureMessageConverters(customizedConverters);
 		return customizedConverters;
 	}
@@ -138,8 +133,7 @@ public class WebSocketMessagingAutoConfigurationTests {
 	private List<MessageConverter> getDefaultConverters() {
 		CompositeMessageConverter compositeDefaultConverter = new DelegatingWebSocketMessageBrokerConfiguration()
 				.brokerMessageConverter();
-		return (List<MessageConverter>) ReflectionTestUtils
-				.getField(compositeDefaultConverter, "converters");
+		return (List<MessageConverter>) ReflectionTestUtils.getField(compositeDefaultConverter, "converters");
 	}
 
 	private Object performStompSubscription(final String topic) throws Throwable {
@@ -155,8 +149,7 @@ public class WebSocketMessagingAutoConfigurationTests {
 		StompSessionHandler handler = new StompSessionHandlerAdapter() {
 
 			@Override
-			public void afterConnected(StompSession session,
-					StompHeaders connectedHeaders) {
+			public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
 				session.subscribe(topic, new StompFrameHandler() {
 
 					@Override
@@ -179,8 +172,8 @@ public class WebSocketMessagingAutoConfigurationTests {
 			}
 
 			@Override
-			public void handleException(StompSession session, StompCommand command,
-					StompHeaders headers, byte[] payload, Throwable exception) {
+			public void handleException(StompSession session, StompCommand command, StompHeaders headers,
+					byte[] payload, Throwable exception) {
 				failure.set(exception);
 				latch.countDown();
 			}
@@ -197,15 +190,12 @@ public class WebSocketMessagingAutoConfigurationTests {
 		stompClient.connect("ws://localhost:{port}/messaging", handler,
 				this.context.getEnvironment().getProperty("local.server.port"));
 
-		if (!latch.await(30, TimeUnit.SECONDS)) {
+		if (!latch.await(30000, TimeUnit.SECONDS)) {
 			if (failure.get() != null) {
 				throw failure.get();
 			}
-			else {
-				fail("Response was not received within 30 seconds");
-			}
+			fail("Response was not received within 30 seconds");
 		}
-
 		return result.get();
 	}
 
@@ -213,13 +203,10 @@ public class WebSocketMessagingAutoConfigurationTests {
 	@EnableWebSocket
 	@EnableConfigurationProperties
 	@EnableWebSocketMessageBroker
-	@ImportAutoConfiguration({ JacksonAutoConfiguration.class,
-			EmbeddedServletContainerAutoConfiguration.class,
-			ServerPropertiesAutoConfiguration.class,
-			WebSocketMessagingAutoConfiguration.class,
+	@ImportAutoConfiguration({ JacksonAutoConfiguration.class, EmbeddedServletContainerAutoConfiguration.class,
+			ServerPropertiesAutoConfiguration.class, WebSocketMessagingAutoConfiguration.class,
 			DispatcherServletAutoConfiguration.class })
-	static class WebSocketMessagingConfiguration
-			extends AbstractWebSocketMessageBrokerConfigurer {
+	static class WebSocketMessagingConfiguration extends AbstractWebSocketMessageBrokerConfigurer {
 
 		@Override
 		public void registerStompEndpoints(StompEndpointRegistry registry) {

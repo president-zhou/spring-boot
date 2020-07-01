@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,7 +25,6 @@ import com.samskivert.mustache.Mustache.TemplateLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -52,14 +51,18 @@ public class MustacheAutoConfiguration {
 
 	private static final Log logger = LogFactory.getLog(MustacheAutoConfiguration.class);
 
-	@Autowired
-	private MustacheProperties mustache;
+	private final MustacheProperties mustache;
 
-	@Autowired
-	private Environment environment;
+	private final Environment environment;
 
-	@Autowired
-	private ApplicationContext applicationContext;
+	private final ApplicationContext applicationContext;
+
+	public MustacheAutoConfiguration(MustacheProperties mustache, Environment environment,
+			ApplicationContext applicationContext) {
+		this.mustache = mustache;
+		this.environment = environment;
+		this.applicationContext = applicationContext;
+	}
 
 	@PostConstruct
 	public void checkTemplateLocationExists() {
@@ -67,8 +70,7 @@ public class MustacheAutoConfiguration {
 			TemplateLocation location = new TemplateLocation(this.mustache.getPrefix());
 			if (!location.exists(this.applicationContext)) {
 				logger.warn("Cannot find template location: " + location
-						+ " (please add some templates, check your Mustache "
-						+ "configuration, or set spring.mustache."
+						+ " (please add some templates, check your Mustache " + "configuration, or set spring.mustache."
 						+ "check-template-location=false)");
 			}
 		}
@@ -77,8 +79,7 @@ public class MustacheAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean(Mustache.Compiler.class)
 	public Mustache.Compiler mustacheCompiler(TemplateLoader mustacheTemplateLoader) {
-		return Mustache.compiler().withLoader(mustacheTemplateLoader)
-				.withCollector(collector());
+		return Mustache.compiler().withLoader(mustacheTemplateLoader).withCollector(collector());
 	}
 
 	private Collector collector() {
@@ -90,8 +91,8 @@ public class MustacheAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean(TemplateLoader.class)
 	public MustacheResourceTemplateLoader mustacheTemplateLoader() {
-		MustacheResourceTemplateLoader loader = new MustacheResourceTemplateLoader(
-				this.mustache.getPrefix(), this.mustache.getSuffix());
+		MustacheResourceTemplateLoader loader = new MustacheResourceTemplateLoader(this.mustache.getPrefix(),
+				this.mustache.getSuffix());
 		loader.setCharset(this.mustache.getCharsetName());
 		return loader;
 	}
@@ -100,18 +101,17 @@ public class MustacheAutoConfiguration {
 	@ConditionalOnWebApplication
 	protected static class MustacheWebConfiguration {
 
-		@Autowired
-		private MustacheProperties mustache;
+		private final MustacheProperties mustache;
+
+		protected MustacheWebConfiguration(MustacheProperties mustache) {
+			this.mustache = mustache;
+		}
 
 		@Bean
 		@ConditionalOnMissingBean(MustacheViewResolver.class)
 		public MustacheViewResolver mustacheViewResolver(Compiler mustacheCompiler) {
 			MustacheViewResolver resolver = new MustacheViewResolver();
-			resolver.setPrefix(this.mustache.getPrefix());
-			resolver.setSuffix(this.mustache.getSuffix());
-			resolver.setCache(this.mustache.isCache());
-			resolver.setViewNames(this.mustache.getViewNames());
-			resolver.setContentType(this.mustache.getContentType().toString());
+			this.mustache.applyToViewResolver(resolver);
 			resolver.setCharset(this.mustache.getCharsetName());
 			resolver.setCompiler(mustacheCompiler);
 			resolver.setOrder(Ordered.LOWEST_PRECEDENCE - 10);
@@ -119,4 +119,5 @@ public class MustacheAutoConfiguration {
 		}
 
 	}
+
 }

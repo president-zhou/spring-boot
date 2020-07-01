@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,10 +24,10 @@ import org.junit.Test;
 import org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
-import org.springframework.boot.context.embedded.ServletListenerRegistrationBean;
 import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory;
+import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -76,8 +76,8 @@ public class EmbeddedServletContainerServletContextListenerTests {
 	private void servletContextListenerBeanIsCalled(Class<?> configuration) {
 		AnnotationConfigEmbeddedWebApplicationContext context = new AnnotationConfigEmbeddedWebApplicationContext(
 				ServletContextListenerBeanConfiguration.class, configuration);
-		ServletContextListener servletContextListener = context
-				.getBean("servletContextListener", ServletContextListener.class);
+		ServletContextListener servletContextListener = context.getBean("servletContextListener",
+				ServletContextListener.class);
 		verify(servletContextListener).contextInitialized(any(ServletContextEvent.class));
 		context.close();
 	}
@@ -86,8 +86,7 @@ public class EmbeddedServletContainerServletContextListenerTests {
 		AnnotationConfigEmbeddedWebApplicationContext context = new AnnotationConfigEmbeddedWebApplicationContext(
 				ServletListenerRegistrationBeanConfiguration.class, configuration);
 		ServletContextListener servletContextListener = (ServletContextListener) context
-				.getBean("registration", ServletListenerRegistrationBean.class)
-				.getListener();
+				.getBean("registration", ServletListenerRegistrationBean.class).getListener();
 		verify(servletContextListener).contextInitialized(any(ServletContextEvent.class));
 		context.close();
 	}
@@ -137,8 +136,7 @@ public class EmbeddedServletContainerServletContextListenerTests {
 
 		@Bean
 		public ServletListenerRegistrationBean<ServletContextListener> registration() {
-			return new ServletListenerRegistrationBean<ServletContextListener>(
-					mock(ServletContextListener.class));
+			return new ServletListenerRegistrationBean<ServletContextListener>(mock(ServletContextListener.class));
 		}
 
 	}

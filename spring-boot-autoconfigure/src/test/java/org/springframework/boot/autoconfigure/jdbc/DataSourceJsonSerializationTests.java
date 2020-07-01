@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -44,8 +44,7 @@ import org.springframework.core.convert.support.DefaultConversionService;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test that a {@link DataSource} can be exposed as JSON for actuator endpoints.
@@ -62,7 +61,7 @@ public class DataSourceJsonSerializationTests {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.setSerializerFactory(factory);
 		String value = mapper.writeValueAsString(dataSource);
-		assertTrue(value.contains("\"url\":"));
+		assertThat(value.contains("\"url\":")).isTrue();
 	}
 
 	@Test
@@ -71,12 +70,13 @@ public class DataSourceJsonSerializationTests {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.addMixIn(DataSource.class, DataSourceJson.class);
 		String value = mapper.writeValueAsString(dataSource);
-		assertTrue(value.contains("\"url\":"));
-		assertEquals(1, StringUtils.countOccurrencesOf(value, "\"url\""));
+		assertThat(value.contains("\"url\":")).isTrue();
+		assertThat(StringUtils.countOccurrencesOf(value, "\"url\"")).isEqualTo(1);
 	}
 
 	@JsonSerialize(using = TomcatDataSourceSerializer.class)
 	protected interface DataSourceJson {
+
 	}
 
 	protected static class TomcatDataSourceSerializer extends JsonSerializer<DataSource> {
@@ -84,17 +84,14 @@ public class DataSourceJsonSerializationTests {
 		private ConversionService conversionService = new DefaultConversionService();
 
 		@Override
-		public void serialize(DataSource value, JsonGenerator jgen,
-				SerializerProvider provider) throws IOException, JsonProcessingException {
+		public void serialize(DataSource value, JsonGenerator jgen, SerializerProvider provider)
+				throws IOException, JsonProcessingException {
 			jgen.writeStartObject();
-			for (PropertyDescriptor property : BeanUtils
-					.getPropertyDescriptors(DataSource.class)) {
+			for (PropertyDescriptor property : BeanUtils.getPropertyDescriptors(DataSource.class)) {
 				Method reader = property.getReadMethod();
 				if (reader != null && property.getWriteMethod() != null
-						&& this.conversionService.canConvert(String.class,
-								property.getPropertyType())) {
-					jgen.writeObjectField(property.getName(),
-							ReflectionUtils.invokeMethod(reader, value));
+						&& this.conversionService.canConvert(String.class, property.getPropertyType())) {
+					jgen.writeObjectField(property.getName(), ReflectionUtils.invokeMethod(reader, value));
 				}
 			}
 			jgen.writeEndObject();
@@ -107,15 +104,13 @@ public class DataSourceJsonSerializationTests {
 		private ConversionService conversionService = new DefaultConversionService();
 
 		@Override
-		public List<BeanPropertyWriter> changeProperties(SerializationConfig config,
-				BeanDescription beanDesc, List<BeanPropertyWriter> beanProperties) {
+		public List<BeanPropertyWriter> changeProperties(SerializationConfig config, BeanDescription beanDesc,
+				List<BeanPropertyWriter> beanProperties) {
 			List<BeanPropertyWriter> result = new ArrayList<BeanPropertyWriter>();
 			for (BeanPropertyWriter writer : beanProperties) {
-				AnnotatedMethod setter = beanDesc.findMethod(
-						"set" + StringUtils.capitalize(writer.getName()),
-						new Class<?>[] { writer.getPropertyType() });
-				if (setter != null && this.conversionService.canConvert(String.class,
-						writer.getPropertyType())) {
+				AnnotatedMethod setter = beanDesc.findMethod("set" + StringUtils.capitalize(writer.getName()),
+						new Class<?>[] { writer.getType().getRawClass() });
+				if (setter != null && this.conversionService.canConvert(String.class, writer.getType().getRawClass())) {
 					result.add(writer);
 				}
 			}

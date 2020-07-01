@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,11 +36,10 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.util.Assert;
 
 /**
- * A <a href="http://livereload.com">livereload</a> server.
+ * A <a href="https://github.com/livereload">livereload</a> server.
  *
  * @author Phillip Webb
  * @since 1.3.0
- * @see <a href="http://livereload.com">livereload.com</a>
  */
 public class LiveReloadServer {
 
@@ -53,6 +52,12 @@ public class LiveReloadServer {
 
 	private static final int READ_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(4);
 
+	private final ExecutorService executor = Executors.newCachedThreadPool(new WorkerThreadFactory());
+
+	private final List<Connection> connections = new ArrayList<Connection>();
+
+	private final Object monitor = new Object();
+
 	private final int port;
 
 	private final ThreadFactory threadFactory;
@@ -60,11 +65,6 @@ public class LiveReloadServer {
 	private ServerSocket serverSocket;
 
 	private Thread listenThread;
-
-	private ExecutorService executor = Executors
-			.newCachedThreadPool(new WorkerThreadFactory());
-
-	private List<Connection> connections = new ArrayList<Connection>();
 
 	/**
 	 * Create a new {@link LiveReloadServer} listening on the default port.
@@ -112,29 +112,33 @@ public class LiveReloadServer {
 	 * Start the livereload server and accept incoming connections.
 	 * @throws IOException in case of I/O errors
 	 */
-	public synchronized void start() throws IOException {
-		Assert.state(!isStarted(), "Server already started");
-		logger.debug("Starting live reload server on port " + this.port);
-		this.serverSocket = new ServerSocket(this.port);
-		this.listenThread = this.threadFactory.newThread(new Runnable() {
+	public void start() throws IOException {
+		synchronized (this.monitor) {
+			Assert.state(!isStarted(), "Server already started");
+			logger.debug("Starting live reload server on port " + this.port);
+			this.serverSocket = new ServerSocket(this.port);
+			this.listenThread = this.threadFactory.newThread(new Runnable() {
 
-			@Override
-			public void run() {
-				acceptConnections();
-			}
+				@Override
+				public void run() {
+					acceptConnections();
+				}
 
-		});
-		this.listenThread.setDaemon(true);
-		this.listenThread.setName("Live Reload Server");
-		this.listenThread.start();
+			});
+			this.listenThread.setDaemon(true);
+			this.listenThread.setName("Live Reload Server");
+			this.listenThread.start();
+		}
 	}
 
 	/**
 	 * Return if the server has been started.
 	 * @return {@code true} if the server is running
 	 */
-	public synchronized boolean isStarted() {
-		return this.listenThread != null;
+	public boolean isStarted() {
+		synchronized (this.monitor) {
+			return this.listenThread != null;
+		}
 	}
 
 	/**
@@ -168,25 +172,27 @@ public class LiveReloadServer {
 	 * Gracefully stop the livereload server.
 	 * @throws IOException in case of I/O errors
 	 */
-	public synchronized void stop() throws IOException {
-		if (this.listenThread != null) {
-			closeAllConnections();
-			try {
-				this.executor.shutdown();
-				this.executor.awaitTermination(1, TimeUnit.MINUTES);
+	public void stop() throws IOException {
+		synchronized (this.monitor) {
+			if (this.listenThread != null) {
+				closeAllConnections();
+				try {
+					this.executor.shutdown();
+					this.executor.awaitTermination(1, TimeUnit.MINUTES);
+				}
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+				}
+				this.serverSocket.close();
+				try {
+					this.listenThread.join();
+				}
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+				}
+				this.listenThread = null;
+				this.serverSocket = null;
 			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-			this.serverSocket.close();
-			try {
-				this.listenThread.join();
-			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-			this.listenThread = null;
-			this.serverSocket = null;
 		}
 	}
 
@@ -202,13 +208,15 @@ public class LiveReloadServer {
 	 * Trigger livereload of all connected clients.
 	 */
 	public void triggerReload() {
-		synchronized (this.connections) {
-			for (Connection connection : this.connections) {
-				try {
-					connection.triggerReload();
-				}
-				catch (Exception ex) {
-					logger.debug("Unable to send reload message", ex);
+		synchronized (this.monitor) {
+			synchronized (this.connections) {
+				for (Connection connection : this.connections) {
+					try {
+						connection.triggerReload();
+					}
+					catch (Exception ex) {
+						logger.debug("Unable to send reload message", ex);
+					}
 				}
 			}
 		}
@@ -234,13 +242,14 @@ public class LiveReloadServer {
 	 * @return a connection
 	 * @throws IOException in case of I/O errors
 	 */
-	protected Connection createConnection(Socket socket, InputStream inputStream,
-			OutputStream outputStream) throws IOException {
+	protected Connection createConnection(Socket socket, InputStream inputStream, OutputStream outputStream)
+			throws IOException {
 		return new Connection(socket, inputStream, outputStream);
 	}
 
 	/**
 	 * {@link Runnable} to handle a single connection.
+	 *
 	 * @see Connection
 	 */
 	private class ConnectionHandler implements Runnable {
@@ -274,8 +283,7 @@ public class LiveReloadServer {
 				try {
 					OutputStream outputStream = this.socket.getOutputStream();
 					try {
-						Connection connection = createConnection(this.socket,
-								this.inputStream, outputStream);
+						Connection connection = createConnection(this.socket, this.inputStream, outputStream);
 						runConnection(connection);
 					}
 					finally {

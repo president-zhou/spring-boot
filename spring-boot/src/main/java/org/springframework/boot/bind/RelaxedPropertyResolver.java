@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,13 +19,16 @@ package org.springframework.boot.bind;
 import java.util.Map;
 
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.Environment;
 import org.springframework.core.env.PropertyResolver;
+import org.springframework.core.env.PropertySourcesPropertyResolver;
 import org.springframework.util.Assert;
 
 /**
  * {@link PropertyResolver} that attempts to resolve values using {@link RelaxedNames}.
  *
  * @author Phillip Webb
+ * @since 1.0.0
  * @see RelaxedNames
  */
 public class RelaxedPropertyResolver implements PropertyResolver {
@@ -41,7 +44,7 @@ public class RelaxedPropertyResolver implements PropertyResolver {
 	public RelaxedPropertyResolver(PropertyResolver resolver, String prefix) {
 		Assert.notNull(resolver, "PropertyResolver must not be null");
 		this.resolver = resolver;
-		this.prefix = (prefix == null ? "" : prefix);
+		this.prefix = (prefix != null) ? prefix : "";
 	}
 
 	@Override
@@ -50,8 +53,7 @@ public class RelaxedPropertyResolver implements PropertyResolver {
 	}
 
 	@Override
-	public <T> T getRequiredProperty(String key, Class<T> targetType)
-			throws IllegalStateException {
+	public <T> T getRequiredProperty(String key, Class<T> targetType) throws IllegalStateException {
 		T value = getProperty(key, targetType);
 		Assert.state(value != null, String.format("required key [%s] not found", key));
 		return value;
@@ -87,14 +89,14 @@ public class RelaxedPropertyResolver implements PropertyResolver {
 	}
 
 	@Override
+	@Deprecated
 	public <T> Class<T> getPropertyAsClass(String key, Class<T> targetType) {
 		RelaxedNames prefixes = new RelaxedNames(this.prefix);
 		RelaxedNames keys = new RelaxedNames(key);
 		for (String prefix : prefixes) {
 			for (String relaxedKey : keys) {
 				if (this.resolver.containsProperty(prefix + relaxedKey)) {
-					return this.resolver.getPropertyAsClass(prefix + relaxedKey,
-							targetType);
+					return this.resolver.getPropertyAsClass(prefix + relaxedKey, targetType);
 				}
 			}
 		}
@@ -117,15 +119,12 @@ public class RelaxedPropertyResolver implements PropertyResolver {
 
 	@Override
 	public String resolvePlaceholders(String text) {
-		throw new UnsupportedOperationException(
-				"Unable to resolve placeholders with relaxed properties");
+		throw new UnsupportedOperationException("Unable to resolve placeholders with relaxed properties");
 	}
 
 	@Override
-	public String resolveRequiredPlaceholders(String text)
-			throws IllegalArgumentException {
-		throw new UnsupportedOperationException(
-				"Unable to resolve placeholders with relaxed properties");
+	public String resolveRequiredPlaceholders(String text) throws IllegalArgumentException {
+		throw new UnsupportedOperationException("Unable to resolve placeholders with relaxed properties");
 	}
 
 	/**
@@ -137,11 +136,29 @@ public class RelaxedPropertyResolver implements PropertyResolver {
 	 * @see PropertySourceUtils#getSubProperties
 	 */
 	public Map<String, Object> getSubProperties(String keyPrefix) {
-		Assert.isInstanceOf(ConfigurableEnvironment.class, this.resolver,
-				"SubProperties not available.");
+		Assert.isInstanceOf(ConfigurableEnvironment.class, this.resolver, "SubProperties not available.");
 		ConfigurableEnvironment env = (ConfigurableEnvironment) this.resolver;
-		return PropertySourceUtils.getSubProperties(env.getPropertySources(), this.prefix,
-				keyPrefix);
+		return PropertySourceUtils.getSubProperties(env.getPropertySources(), this.prefix, keyPrefix);
+	}
+
+	/**
+	 * Return a property resolver for the environment, preferring one that ignores
+	 * unresolvable nested placeholders.
+	 * @param environment the source environment
+	 * @param prefix the prefix
+	 * @return a property resolver for the environment
+	 * @since 1.4.3
+	 */
+	public static RelaxedPropertyResolver ignoringUnresolvableNestedPlaceholders(Environment environment,
+			String prefix) {
+		Assert.notNull(environment, "Environment must not be null");
+		PropertyResolver resolver = environment;
+		if (environment instanceof ConfigurableEnvironment) {
+			resolver = new PropertySourcesPropertyResolver(
+					((ConfigurableEnvironment) environment).getPropertySources());
+			((PropertySourcesPropertyResolver) resolver).setIgnoreUnresolvableNestedPlaceholders(true);
+		}
+		return new RelaxedPropertyResolver(resolver, prefix);
 	}
 
 }

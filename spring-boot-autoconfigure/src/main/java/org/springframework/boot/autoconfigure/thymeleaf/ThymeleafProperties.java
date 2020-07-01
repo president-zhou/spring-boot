@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,7 +27,7 @@ import org.springframework.util.MimeType;
  * @author Stephane Nicoll
  * @since 1.2.0
  */
-@ConfigurationProperties("spring.thymeleaf")
+@ConfigurationProperties(prefix = "spring.thymeleaf")
 public class ThymeleafProperties {
 
 	private static final Charset DEFAULT_ENCODING = Charset.forName("UTF-8");
@@ -37,6 +37,11 @@ public class ThymeleafProperties {
 	public static final String DEFAULT_PREFIX = "classpath:/templates/";
 
 	public static final String DEFAULT_SUFFIX = ".html";
+
+	/**
+	 * Check that the template exists before rendering it (Thymeleaf 3+).
+	 */
+	private boolean checkTemplate = true;
 
 	/**
 	 * Check that the templates location exists.
@@ -101,6 +106,14 @@ public class ThymeleafProperties {
 
 	public void setEnabled(boolean enabled) {
 		this.enabled = enabled;
+	}
+
+	public boolean isCheckTemplate() {
+		return this.checkTemplate;
+	}
+
+	public void setCheckTemplate(boolean checkTemplate) {
+		this.checkTemplate = checkTemplate;
 	}
 
 	public boolean isCheckTemplateLocation() {

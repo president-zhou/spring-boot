@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,15 +21,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import org.springframework.boot.actuate.metrics.reader.MetricReader;
 import org.springframework.boot.actuate.metrics.writer.GaugeWriter;
 import org.springframework.boot.actuate.metrics.writer.MetricWriter;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link MetricExporters}.
@@ -44,9 +43,9 @@ public class MetricExportersTests {
 
 	private Map<String, GaugeWriter> writers = new LinkedHashMap<String, GaugeWriter>();
 
-	private MetricReader reader = Mockito.mock(MetricReader.class);
+	private MetricReader reader = mock(MetricReader.class);
 
-	private MetricWriter writer = Mockito.mock(MetricWriter.class);
+	private MetricWriter writer = mock(MetricWriter.class);
 
 	@Test
 	public void emptyWriters() {
@@ -54,8 +53,8 @@ public class MetricExportersTests {
 		this.exporters.setReader(this.reader);
 		this.exporters.setWriters(this.writers);
 		this.exporters.configureTasks(new ScheduledTaskRegistrar());
-		assertNotNull(this.exporters.getExporters());
-		assertEquals(0, this.exporters.getExporters().size());
+		assertThat(this.exporters.getExporters()).isNotNull();
+		assertThat(this.exporters.getExporters()).isEmpty();
 	}
 
 	@Test
@@ -66,19 +65,19 @@ public class MetricExportersTests {
 		this.exporters.setReader(this.reader);
 		this.exporters.setWriters(this.writers);
 		this.exporters.configureTasks(new ScheduledTaskRegistrar());
-		assertNotNull(this.exporters.getExporters());
-		assertEquals(1, this.exporters.getExporters().size());
+		assertThat(this.exporters.getExporters()).isNotNull();
+		assertThat(this.exporters.getExporters()).hasSize(1);
 	}
 
 	@Test
 	public void exporter() {
 		this.export.setUpDefaults();
 		this.exporters = new MetricExporters(this.export);
-		this.exporters.setExporters(Collections.<String, Exporter>singletonMap("foo",
-				new MetricCopyExporter(this.reader, this.writer)));
+		this.exporters.setExporters(
+				Collections.<String, Exporter>singletonMap("foo", new MetricCopyExporter(this.reader, this.writer)));
 		this.exporters.configureTasks(new ScheduledTaskRegistrar());
-		assertNotNull(this.exporters.getExporters());
-		assertEquals(1, this.exporters.getExporters().size());
+		assertThat(this.exporters.getExporters()).isNotNull();
+		assertThat(this.exporters.getExporters()).hasSize(1);
 	}
 
 }

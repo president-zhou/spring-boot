@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,8 +28,7 @@ import org.gradle.tooling.ProjectConnection;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for creating a fully executable jar with Gradle.
@@ -49,105 +48,96 @@ public class FullyExecutableJarTests {
 
 	@Test
 	public void jarIsNotExecutableByDefault() throws IOException {
-		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION).run();
+		project.newBuild().forTasks("clean", "build").withArguments("-PbootVersion=" + BOOT_VERSION).run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(false));
+		assertThat(isFullyExecutable(executableJar)).isFalse();
 	}
 
 	@Test
 	public void madeExecutableViaExtension() throws IOException {
-		project.newBuild().forTasks("clean", "build").withArguments(
-				"-PbootVersion=" + BOOT_VERSION, "-PextensionExecutable=true").run();
+		project.newBuild().forTasks("clean", "build")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionExecutable=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
 	}
 
 	@Test
 	public void madeExecutableViaTask() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskExecutable=true")
-				.run();
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskExecutable=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
 	}
 
 	@Test
 	public void taskTakesPrecedenceForMakingJarExecutable() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION,
-						"-PextensionExecutable=false", "-PtaskExecutable=true")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionExecutable=false", "-PtaskExecutable=true")
 				.run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
 	}
 
 	@Test
 	public void scriptPropertiesFromTask() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskProperties=true")
-				.run();
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskProperties=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
-		assertThat(containsLine("# Provides:.*__task__", executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
+		assertThat(containsLine("# Provides:.*__task__", executableJar)).isTrue();
 	}
 
 	@Test
 	public void scriptPropertiesFromExtension() throws IOException {
-		project.newBuild().forTasks("clean", "build").withArguments(
-				"-PbootVersion=" + BOOT_VERSION, "-PextensionProperties=true").run();
+		project.newBuild().forTasks("clean", "build")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionProperties=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
-		assertThat(containsLine("# Provides:.*__extension__", executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
+		assertThat(containsLine("# Provides:.*__extension__", executableJar)).isTrue();
 	}
 
 	@Test
 	public void taskTakesPrecedenceForScriptProperties() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION,
-						"-PextensionProperties=true", "-PtaskProperties=true")
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionProperties=true", "-PtaskProperties=true")
 				.run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(isFullyExecutable(executableJar), is(true));
-		assertThat(containsLine("# Provides:.*__task__", executableJar), is(true));
+		assertThat(isFullyExecutable(executableJar)).isTrue();
+		assertThat(containsLine("# Provides:.*__task__", executableJar)).isTrue();
 	}
 
 	@Test
 	public void customScriptFromTask() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskScript=true")
-				.run();
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PtaskScript=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(containsLine("Custom task script", executableJar), is(true));
+		assertThat(containsLine("Custom task script", executableJar)).isTrue();
 	}
 
 	@Test
 	public void customScriptFromExtension() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionScript=true")
-				.run();
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionScript=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(containsLine("Custom extension script", executableJar), is(true));
+		assertThat(containsLine("Custom extension script", executableJar)).isTrue();
 	}
 
 	@Test
 	public void taskTakesPrecedenceForCustomScript() throws IOException {
 		project.newBuild().forTasks("clean", "build")
-				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionScript=true",
-						"-PtaskScript=true")
-				.run();
+				.withArguments("-PbootVersion=" + BOOT_VERSION, "-PextensionScript=true", "-PtaskScript=true").run();
 		File buildLibs = new File("target/executable-jar/build/libs");
 		File executableJar = new File(buildLibs, "executable-jar.jar");
-		assertThat(containsLine("Custom task script", executableJar), is(true));
+		assertThat(containsLine("Custom task script", executableJar)).isTrue();
 	}
 
 	private boolean isFullyExecutable(File file) throws IOException {

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,12 +16,10 @@
 
 package org.springframework.boot.autoconfigure.security.oauth2.client;
 
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
-import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2SsoDefaultConfiguration.NeedsWebSecurityCondition;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
@@ -42,19 +40,21 @@ import org.springframework.util.ClassUtils;
  */
 @Configuration
 @Conditional(NeedsWebSecurityCondition.class)
-public class OAuth2SsoDefaultConfiguration extends WebSecurityConfigurerAdapter
-		implements Ordered {
+public class OAuth2SsoDefaultConfiguration extends WebSecurityConfigurerAdapter implements Ordered {
 
-	@Autowired
-	BeanFactory beanFactory;
+	private final ApplicationContext applicationContext;
 
-	@Autowired
-	OAuth2SsoProperties sso;
+	private final OAuth2SsoProperties sso;
+
+	public OAuth2SsoDefaultConfiguration(ApplicationContext applicationContext, OAuth2SsoProperties sso) {
+		this.applicationContext = applicationContext;
+		this.sso = sso;
+	}
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		http.antMatcher("/**").authorizeRequests().anyRequest().authenticated();
-		new SsoSecurityConfigurer(this.beanFactory).configure(http);
+		new SsoSecurityConfigurer(this.applicationContext).configure(http);
 	}
 
 	@Override
@@ -62,9 +62,7 @@ public class OAuth2SsoDefaultConfiguration extends WebSecurityConfigurerAdapter
 		if (this.sso.getFilterOrder() != null) {
 			return this.sso.getFilterOrder();
 		}
-		if (ClassUtils.isPresent(
-				"org.springframework.boot.actuate.autoconfigure.ManagementServerProperties",
-				null)) {
+		if (ClassUtils.isPresent("org.springframework.boot.actuate.autoconfigure.ManagementServerProperties", null)) {
 			// If > BASIC_AUTH_ORDER then the existing rules for the actuator
 			// endpoints will take precedence. This value is < BASIC_AUTH_ORDER.
 			return SecurityProperties.ACCESS_OVERRIDE_ORDER - 5;
@@ -72,22 +70,11 @@ public class OAuth2SsoDefaultConfiguration extends WebSecurityConfigurerAdapter
 		return SecurityProperties.ACCESS_OVERRIDE_ORDER;
 	}
 
-	protected static class NeedsWebSecurityCondition extends SpringBootCondition {
+	protected static class NeedsWebSecurityCondition extends EnableOAuth2SsoCondition {
 
 		@Override
-		public ConditionOutcome getMatchOutcome(ConditionContext context,
-				AnnotatedTypeMetadata metadata) {
-			String[] enablers = context.getBeanFactory()
-					.getBeanNamesForAnnotation(EnableOAuth2Sso.class);
-			for (String name : enablers) {
-				if (context.getBeanFactory().isTypeMatch(name,
-						WebSecurityConfigurerAdapter.class)) {
-					return ConditionOutcome.noMatch(
-							"found @EnableOAuth2Sso on a WebSecurityConfigurerAdapter");
-				}
-			}
-			return ConditionOutcome
-					.match("found no @EnableOAuth2Sso on a WebSecurityConfigurerAdapter");
+		public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
+			return ConditionOutcome.inverse(super.getMatchOutcome(context, metadata));
 		}
 
 	}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,15 @@
 
 package org.springframework.boot.autoconfigure.websocket;
 
+import java.net.URL;
+
 import javax.websocket.server.ServerContainer;
 
+import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext;
@@ -29,10 +34,9 @@ import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletConta
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link WebSocketAutoConfiguration}
@@ -55,6 +59,13 @@ public class WebSocketAutoConfigurationTests {
 		}
 	}
 
+	@BeforeClass
+	@AfterClass
+	public static void uninstallUrlStreamHandlerFactory() {
+		ReflectionTestUtils.setField(TomcatURLStreamHandlerFactory.class, "instance", null);
+		ReflectionTestUtils.setField(URL.class, "factory", null);
+	}
+
 	@Test
 	public void tomcatServerContainerIsAvailableFromTheServletContext() {
 		serverContainerIsAvailableFromTheServletContext(TomcatConfiguration.class,
@@ -67,16 +78,16 @@ public class WebSocketAutoConfigurationTests {
 				WebSocketAutoConfiguration.JettyWebSocketConfiguration.class);
 	}
 
-	private void serverContainerIsAvailableFromTheServletContext(
-			Class<?>... configuration) {
+	private void serverContainerIsAvailableFromTheServletContext(Class<?>... configuration) {
 		this.context.register(configuration);
 		this.context.refresh();
 		Object serverContainer = this.context.getServletContext()
 				.getAttribute("javax.websocket.server.ServerContainer");
-		assertThat(serverContainer, is(instanceOf(ServerContainer.class)));
+		assertThat(serverContainer).isInstanceOf(ServerContainer.class);
 
 	}
 
+	@Configuration
 	static class CommonConfiguration {
 
 		@Bean

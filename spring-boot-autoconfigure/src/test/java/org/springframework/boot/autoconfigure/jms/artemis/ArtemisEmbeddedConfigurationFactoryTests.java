@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,10 +20,7 @@ import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.server.JournalType;
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ArtemisEmbeddedConfigurationFactory}
@@ -38,38 +35,33 @@ public class ArtemisEmbeddedConfigurationFactoryTests {
 	public void defaultDataDir() {
 		ArtemisProperties properties = new ArtemisProperties();
 		properties.getEmbedded().setPersistent(true);
-		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties)
-				.createConfiguration();
-		assertThat(configuration.getJournalDirectory(),
-				startsWith(System.getProperty("java.io.tmpdir")));
-		assertThat(configuration.getJournalDirectory(), endsWith("/journal"));
+		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties).createConfiguration();
+		assertThat(configuration.getJournalDirectory()).startsWith(System.getProperty("java.io.tmpdir"))
+				.endsWith("/journal");
 	}
 
 	@Test
 	public void persistenceSetup() {
 		ArtemisProperties properties = new ArtemisProperties();
 		properties.getEmbedded().setPersistent(true);
-		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties)
-				.createConfiguration();
-		assertThat(configuration.isPersistenceEnabled(), equalTo(true));
-		assertThat(configuration.getJournalType(), equalTo(JournalType.NIO));
+		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties).createConfiguration();
+		assertThat(configuration.isPersistenceEnabled()).isTrue();
+		assertThat(configuration.getJournalType()).isEqualTo(JournalType.NIO);
 	}
 
 	@Test
 	public void generatedClusterPassword() throws Exception {
 		ArtemisProperties properties = new ArtemisProperties();
-		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties)
-				.createConfiguration();
-		assertThat(configuration.getClusterPassword().length(), equalTo(36));
+		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties).createConfiguration();
+		assertThat(configuration.getClusterPassword().length()).isEqualTo(36);
 	}
 
 	@Test
 	public void specificClusterPassword() throws Exception {
 		ArtemisProperties properties = new ArtemisProperties();
 		properties.getEmbedded().setClusterPassword("password");
-		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties)
-				.createConfiguration();
-		assertThat(configuration.getClusterPassword(), equalTo("password"));
+		Configuration configuration = new ArtemisEmbeddedConfigurationFactory(properties).createConfiguration();
+		assertThat(configuration.getClusterPassword()).isEqualTo("password");
 	}
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,8 +25,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link DumpEndpoint}.
@@ -42,7 +41,7 @@ public class DumpEndpointTests extends AbstractEndpointTests<DumpEndpoint> {
 	@Test
 	public void invoke() throws Exception {
 		List<ThreadInfo> threadInfo = getEndpointBean().invoke();
-		assertThat(threadInfo.size(), greaterThan(0));
+		assertThat(threadInfo.size()).isGreaterThan(0);
 	}
 
 	@Configuration
@@ -55,4 +54,5 @@ public class DumpEndpointTests extends AbstractEndpointTests<DumpEndpoint> {
 		}
 
 	}
+
 }

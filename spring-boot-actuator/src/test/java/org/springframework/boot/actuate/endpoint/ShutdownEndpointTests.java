@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,11 +30,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextClosedEvent;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ShutdownEndpoint}.
@@ -46,14 +42,13 @@ import static org.junit.Assert.assertTrue;
 public class ShutdownEndpointTests extends AbstractEndpointTests<ShutdownEndpoint> {
 
 	public ShutdownEndpointTests() {
-		super(Config.class, ShutdownEndpoint.class, "shutdown", true,
-				"endpoints.shutdown");
+		super(Config.class, ShutdownEndpoint.class, "shutdown", true, "endpoints.shutdown");
 	}
 
 	@Override
 	public void isEnabledByDefault() throws Exception {
 		// Shutdown is dangerous so is disabled by default
-		assertThat(getEndpointBean().isEnabled(), equalTo(false));
+		assertThat(getEndpointBean().isEnabled()).isFalse();
 	}
 
 	@Test
@@ -61,18 +56,17 @@ public class ShutdownEndpointTests extends AbstractEndpointTests<ShutdownEndpoin
 		Config config = this.context.getBean(Config.class);
 		ClassLoader previousTccl = Thread.currentThread().getContextClassLoader();
 		Map<String, Object> result;
-		Thread.currentThread().setContextClassLoader(
-				new URLClassLoader(new URL[0], getClass().getClassLoader()));
+		Thread.currentThread().setContextClassLoader(new URLClassLoader(new URL[0], getClass().getClassLoader()));
 		try {
 			result = getEndpointBean().invoke();
 		}
 		finally {
 			Thread.currentThread().setContextClassLoader(previousTccl);
 		}
-		assertThat((String) result.get("message"), startsWith("Shutting down"));
-		assertTrue(this.context.isActive());
-		assertTrue(config.latch.await(10, TimeUnit.SECONDS));
-		assertThat(config.threadContextClassLoader, is(getClass().getClassLoader()));
+		assertThat((String) result.get("message")).startsWith("Shutting down");
+		assertThat(this.context.isActive()).isTrue();
+		assertThat(config.latch.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(config.threadContextClassLoader).isEqualTo(getClass().getClassLoader());
 	}
 
 	@Configuration
@@ -92,15 +86,17 @@ public class ShutdownEndpointTests extends AbstractEndpointTests<ShutdownEndpoin
 		@Bean
 		public ApplicationListener<ContextClosedEvent> listener() {
 			return new ApplicationListener<ContextClosedEvent>() {
+
 				@Override
 				public void onApplicationEvent(ContextClosedEvent event) {
-					Config.this.threadContextClassLoader = Thread.currentThread()
-							.getContextClassLoader();
+					Config.this.threadContextClassLoader = Thread.currentThread().getContextClassLoader();
 					Config.this.latch.countDown();
 				}
+
 			};
 
 		}
 
 	}
+
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,12 +37,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.SearchStrategy;
-import org.springframework.boot.autoconfigure.web.EmbeddedServletContainerAutoConfiguration.EmbeddedServletContainerCustomizerBeanPostProcessorRegistrar;
+import org.springframework.boot.autoconfigure.web.EmbeddedServletContainerAutoConfiguration.BeanPostProcessorsRegistrar;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerCustomizerBeanPostProcessor;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.jetty.JettyEmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory;
+import org.springframework.boot.web.servlet.ErrorPageRegistrarBeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -57,15 +58,17 @@ import org.springframework.util.ObjectUtils;
  * @author Phillip Webb
  * @author Dave Syer
  * @author Ivan Sopov
+ * @author Stephane Nicoll
+ * @since 1.0.0
  */
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 @Configuration
 @ConditionalOnWebApplication
-@Import(EmbeddedServletContainerCustomizerBeanPostProcessorRegistrar.class)
+@Import(BeanPostProcessorsRegistrar.class)
 public class EmbeddedServletContainerAutoConfiguration {
 
 	/**
-	 * Nested configuration for if Tomcat is being used.
+	 * Nested configuration if Tomcat is being used.
 	 */
 	@Configuration
 	@ConditionalOnClass({ Servlet.class, Tomcat.class })
@@ -83,8 +86,7 @@ public class EmbeddedServletContainerAutoConfiguration {
 	 * Nested configuration if Jetty is being used.
 	 */
 	@Configuration
-	@ConditionalOnClass({ Servlet.class, Server.class, Loader.class,
-			WebAppContext.class })
+	@ConditionalOnClass({ Servlet.class, Server.class, Loader.class, WebAppContext.class })
 	@ConditionalOnMissingBean(value = EmbeddedServletContainerFactory.class, search = SearchStrategy.CURRENT)
 	public static class EmbeddedJetty {
 
@@ -114,8 +116,7 @@ public class EmbeddedServletContainerAutoConfiguration {
 	 * Registers a {@link EmbeddedServletContainerCustomizerBeanPostProcessor}. Registered
 	 * via {@link ImportBeanDefinitionRegistrar} for early registration.
 	 */
-	public static class EmbeddedServletContainerCustomizerBeanPostProcessorRegistrar
-			implements ImportBeanDefinitionRegistrar, BeanFactoryAware {
+	public static class BeanPostProcessorsRegistrar implements ImportBeanDefinitionRegistrar, BeanFactoryAware {
 
 		private ConfigurableListableBeanFactory beanFactory;
 
@@ -132,14 +133,17 @@ public class EmbeddedServletContainerAutoConfiguration {
 			if (this.beanFactory == null) {
 				return;
 			}
-			if (ObjectUtils.isEmpty(this.beanFactory.getBeanNamesForType(
-					EmbeddedServletContainerCustomizerBeanPostProcessor.class, true,
-					false))) {
-				registry.registerBeanDefinition(
-						"embeddedServletContainerCustomizerBeanPostProcessor",
-						new RootBeanDefinition(
-								EmbeddedServletContainerCustomizerBeanPostProcessor.class));
+			registerSyntheticBeanIfMissing(registry, "embeddedServletContainerCustomizerBeanPostProcessor",
+					EmbeddedServletContainerCustomizerBeanPostProcessor.class);
+			registerSyntheticBeanIfMissing(registry, "errorPageRegistrarBeanPostProcessor",
+					ErrorPageRegistrarBeanPostProcessor.class);
+		}
 
+		private void registerSyntheticBeanIfMissing(BeanDefinitionRegistry registry, String name, Class<?> beanClass) {
+			if (ObjectUtils.isEmpty(this.beanFactory.getBeanNamesForType(beanClass, true, false))) {
+				RootBeanDefinition beanDefinition = new RootBeanDefinition(beanClass);
+				beanDefinition.setSynthetic(true);
+				registry.registerBeanDefinition(name, beanDefinition);
 			}
 		}
 

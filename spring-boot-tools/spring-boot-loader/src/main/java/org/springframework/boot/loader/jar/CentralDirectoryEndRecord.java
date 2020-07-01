@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,8 @@ import org.springframework.boot.loader.data.RandomAccessData;
  * A ZIP File "End of central directory record" (EOCD).
  *
  * @author Phillip Webb
- * @see <a href="http://en.wikipedia.org/wiki/Zip_%28file_format%29">Zip File Format</a>
+ * @author Andy Wilkinson
+ * @see <a href="https://en.wikipedia.org/wiki/Zip_%28file_format%29">Zip File Format</a>
  */
 class CentralDirectoryEndRecord {
 
@@ -61,8 +62,8 @@ class CentralDirectoryEndRecord {
 			this.size++;
 			if (this.size > this.block.length) {
 				if (this.size >= MAXIMUM_SIZE || this.size > data.getSize()) {
-					throw new IOException("Unable to find ZIP central directory "
-							+ "records after reading " + this.size + " bytes");
+					throw new IOException(
+							"Unable to find ZIP central directory " + "records after reading " + this.size + " bytes");
 				}
 				this.block = createBlockFromEndOfData(data, this.size + READ_BLOCK_SIZE);
 			}
@@ -70,20 +71,17 @@ class CentralDirectoryEndRecord {
 		}
 	}
 
-	private byte[] createBlockFromEndOfData(RandomAccessData data, int size)
-			throws IOException {
+	private byte[] createBlockFromEndOfData(RandomAccessData data, int size) throws IOException {
 		int length = (int) Math.min(data.getSize(), size);
 		return Bytes.get(data.getSubsection(data.getSize() - length, length));
 	}
 
 	private boolean isValid() {
-		if (this.block.length < MINIMUM_SIZE
-				|| Bytes.littleEndianValue(this.block, this.offset + 0, 4) != SIGNATURE) {
+		if (this.block.length < MINIMUM_SIZE || Bytes.littleEndianValue(this.block, this.offset + 0, 4) != SIGNATURE) {
 			return false;
 		}
 		// Total size must be the structure size + comment
-		long commentLength = Bytes.littleEndianValue(this.block,
-				this.offset + COMMENT_LENGTH_OFFSET, 2);
+		long commentLength = Bytes.littleEndianValue(this.block, this.offset + COMMENT_LENGTH_OFFSET, 2);
 		return this.size == MINIMUM_SIZE + commentLength;
 	}
 
@@ -118,7 +116,11 @@ class CentralDirectoryEndRecord {
 	 * @return the number of records in the zip
 	 */
 	public int getNumberOfRecords() {
-		return (int) Bytes.littleEndianValue(this.block, this.offset + 10, 2);
+		long numberOfRecords = Bytes.littleEndianValue(this.block, this.offset + 10, 2);
+		if (numberOfRecords == 0xFFFF) {
+			throw new IllegalStateException("Zip64 archives are not supported");
+		}
+		return (int) numberOfRecords;
 	}
 
 }

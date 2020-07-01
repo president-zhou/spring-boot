@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link InMemoryTraceRepository}.
@@ -39,9 +39,9 @@ public class InMemoryTraceRepositoryTests {
 		this.repository.add(Collections.<String, Object>singletonMap("bar", "foo"));
 		this.repository.add(Collections.<String, Object>singletonMap("bar", "bar"));
 		List<Trace> traces = this.repository.findAll();
-		assertEquals(2, traces.size());
-		assertEquals("bar", traces.get(0).getInfo().get("bar"));
-		assertEquals("foo", traces.get(1).getInfo().get("bar"));
+		assertThat(traces).hasSize(2);
+		assertThat(traces.get(0).getInfo().get("bar")).isEqualTo("bar");
+		assertThat(traces.get(1).getInfo().get("bar")).isEqualTo("foo");
 	}
 
 	@Test
@@ -52,9 +52,9 @@ public class InMemoryTraceRepositoryTests {
 		this.repository.add(Collections.<String, Object>singletonMap("bar", "foo"));
 		this.repository.add(Collections.<String, Object>singletonMap("bar", "bar"));
 		List<Trace> traces = this.repository.findAll();
-		assertEquals(2, traces.size());
-		assertEquals("bar", traces.get(1).getInfo().get("bar"));
-		assertEquals("foo", traces.get(0).getInfo().get("bar"));
+		assertThat(traces).hasSize(2);
+		assertThat(traces.get(1).getInfo().get("bar")).isEqualTo("bar");
+		assertThat(traces.get(0).getInfo().get("bar")).isEqualTo("foo");
 	}
 
 }

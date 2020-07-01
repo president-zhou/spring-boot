@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,10 +28,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.MutablePropertyValues;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.support.ResourceEditorRegistrar;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.core.convert.ConversionService;
@@ -49,17 +51,18 @@ import org.springframework.validation.Validator;
  * them to an object of a specified type and then optionally running a {@link Validator}
  * over it.
  *
- * @param <T> The target type
+ * @param <T> the target type
  * @author Dave Syer
+ * @since 1.0.0
  */
 public class PropertiesConfigurationFactory<T>
-		implements FactoryBean<T>, MessageSourceAware, InitializingBean {
+		implements FactoryBean<T>, ApplicationContextAware, MessageSourceAware, InitializingBean {
 
 	private static final char[] EXACT_DELIMITERS = { '_', '.', '[' };
 
 	private static final char[] TARGET_NAME_DELIMITERS = { '_', '.' };
 
-	private final Log logger = LogFactory.getLog(getClass());
+	private static final Log logger = LogFactory.getLog(PropertiesConfigurationFactory.class);
 
 	private boolean ignoreUnknownFields = true;
 
@@ -67,13 +70,13 @@ public class PropertiesConfigurationFactory<T>
 
 	private boolean exceptionIfInvalid = true;
 
-	private Properties properties;
-
 	private PropertySources propertySources;
 
 	private final T target;
 
 	private Validator validator;
+
+	private ApplicationContext applicationContext;
 
 	private MessageSource messageSource;
 
@@ -85,13 +88,15 @@ public class PropertiesConfigurationFactory<T>
 
 	private ConversionService conversionService;
 
+	private boolean resolvePlaceholders = true;
+
 	/**
 	 * Create a new {@link PropertiesConfigurationFactory} instance.
 	 * @param target the target object to bind too
 	 * @see #PropertiesConfigurationFactory(Class)
 	 */
 	public PropertiesConfigurationFactory(T target) {
-		Assert.notNull(target);
+		Assert.notNull(target, "target must not be null");
 		this.target = target;
 	}
 
@@ -102,7 +107,7 @@ public class PropertiesConfigurationFactory<T>
 	 */
 	@SuppressWarnings("unchecked")
 	public PropertiesConfigurationFactory(Class<?> type) {
-		Assert.notNull(type);
+		Assert.notNull(type, "type must not be null");
 		this.target = (T) BeanUtils.instantiate(type);
 	}
 
@@ -149,6 +154,11 @@ public class PropertiesConfigurationFactory<T>
 		this.targetName = targetName;
 	}
 
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) {
+		this.applicationContext = applicationContext;
+	}
+
 	/**
 	 * Set the message source.
 	 * @param messageSource the message source
@@ -156,14 +166,6 @@ public class PropertiesConfigurationFactory<T>
 	@Override
 	public void setMessageSource(MessageSource messageSource) {
 		this.messageSource = messageSource;
-	}
-
-	/**
-	 * Set the properties.
-	 * @param properties the properties
-	 */
-	public void setProperties(Properties properties) {
-		this.properties = properties;
 	}
 
 	/**
@@ -194,9 +196,21 @@ public class PropertiesConfigurationFactory<T>
 	 * Set a flag to indicate that an exception should be raised if a Validator is
 	 * available and validation fails.
 	 * @param exceptionIfInvalid the flag to set
+	 * @deprecated as of 1.5, do not specify a {@link Validator} if validation should not
+	 * occur
 	 */
+	@Deprecated
 	public void setExceptionIfInvalid(boolean exceptionIfInvalid) {
 		this.exceptionIfInvalid = exceptionIfInvalid;
+	}
+
+	/**
+	 * Flag to indicate that placeholders should be replaced during binding. Default is
+	 * true.
+	 * @param resolvePlaceholders flag value
+	 */
+	public void setResolvePlaceholders(boolean resolvePlaceholders) {
+		this.resolvePlaceholders = resolvePlaceholders;
 	}
 
 	@Override
@@ -226,16 +240,11 @@ public class PropertiesConfigurationFactory<T>
 	}
 
 	public void bindPropertiesToTarget() throws BindException {
-		Assert.state(this.properties != null || this.propertySources != null,
-				"Properties or propertySources should not be null");
+		Assert.state(this.propertySources != null, "PropertySources should not be null");
 		try {
-			if (this.logger.isTraceEnabled()) {
-				if (this.properties != null) {
-					this.logger.trace("Properties:\n" + this.properties);
-				}
-				else {
-					this.logger.trace("Property Sources: " + this.propertySources);
-				}
+			if (logger.isTraceEnabled()) {
+				logger.trace("Property Sources: " + this.propertySources);
+
 			}
 			this.hasBeenBound = true;
 			doBindPropertiesToTarget();
@@ -244,16 +253,15 @@ public class PropertiesConfigurationFactory<T>
 			if (this.exceptionIfInvalid) {
 				throw ex;
 			}
-			this.logger.error("Failed to load Properties validation bean. "
-					+ "Your Properties may be invalid.", ex);
+			PropertiesConfigurationFactory.logger
+					.error("Failed to load Properties validation bean. " + "Your Properties may be invalid.", ex);
 		}
 	}
 
 	private void doBindPropertiesToTarget() throws BindException {
-		RelaxedDataBinder dataBinder = (this.targetName != null
-				? new RelaxedDataBinder(this.target, this.targetName)
-				: new RelaxedDataBinder(this.target));
-		if (this.validator != null) {
+		RelaxedDataBinder dataBinder = (this.targetName != null) ? new RelaxedDataBinder(this.target, this.targetName)
+				: new RelaxedDataBinder(this.target);
+		if (this.validator != null && this.validator.supports(dataBinder.getTarget().getClass())) {
 			dataBinder.setValidator(this.validator);
 		}
 		if (this.conversionService != null) {
@@ -264,25 +272,30 @@ public class PropertiesConfigurationFactory<T>
 		dataBinder.setIgnoreInvalidFields(this.ignoreInvalidFields);
 		dataBinder.setIgnoreUnknownFields(this.ignoreUnknownFields);
 		customizeBinder(dataBinder);
+		if (this.applicationContext != null) {
+			ResourceEditorRegistrar resourceEditorRegistrar = new ResourceEditorRegistrar(this.applicationContext,
+					this.applicationContext.getEnvironment());
+			resourceEditorRegistrar.registerCustomEditors(dataBinder);
+		}
 		Iterable<String> relaxedTargetNames = getRelaxedTargetNames();
 		Set<String> names = getNames(relaxedTargetNames);
-		PropertyValues propertyValues = getPropertyValues(names, relaxedTargetNames);
+		PropertyValues propertyValues = getPropertySourcesPropertyValues(names, relaxedTargetNames);
 		dataBinder.bind(propertyValues);
 		if (this.validator != null) {
-			validate(dataBinder);
+			dataBinder.validate();
 		}
+		checkForBindingErrors(dataBinder);
 	}
 
 	private Iterable<String> getRelaxedTargetNames() {
-		return (this.target != null && StringUtils.hasLength(this.targetName)
-				? new RelaxedNames(this.targetName) : null);
+		return (this.target != null && StringUtils.hasLength(this.targetName)) ? new RelaxedNames(this.targetName)
+				: null;
 	}
 
 	private Set<String> getNames(Iterable<String> prefixes) {
 		Set<String> names = new LinkedHashSet<String>();
 		if (this.target != null) {
-			PropertyDescriptor[] descriptors = BeanUtils
-					.getPropertyDescriptors(this.target.getClass());
+			PropertyDescriptor[] descriptors = BeanUtils.getPropertyDescriptors(this.target.getClass());
 			for (PropertyDescriptor descriptor : descriptors) {
 				String name = descriptor.getName();
 				if (!name.equals("class")) {
@@ -306,19 +319,9 @@ public class PropertiesConfigurationFactory<T>
 		return names;
 	}
 
-	private PropertyValues getPropertyValues(Set<String> names,
-			Iterable<String> relaxedTargetNames) {
-		if (this.properties != null) {
-			return new MutablePropertyValues(this.properties);
-		}
-		return getPropertySourcesPropertyValues(names, relaxedTargetNames);
-	}
-
-	private PropertyValues getPropertySourcesPropertyValues(Set<String> names,
-			Iterable<String> relaxedTargetNames) {
-		PropertyNamePatternsMatcher includes = getPropertyNamePatternsMatcher(names,
-				relaxedTargetNames);
-		return new PropertySourcesPropertyValues(this.propertySources, names, includes);
+	private PropertyValues getPropertySourcesPropertyValues(Set<String> names, Iterable<String> relaxedTargetNames) {
+		PropertyNamePatternsMatcher includes = getPropertyNamePatternsMatcher(names, relaxedTargetNames);
+		return new PropertySourcesPropertyValues(this.propertySources, names, includes, this.resolvePlaceholders);
 	}
 
 	private PropertyNamePatternsMatcher getPropertyNamePatternsMatcher(Set<String> names,
@@ -336,8 +339,7 @@ public class PropertiesConfigurationFactory<T>
 			for (String relaxedTargetName : relaxedTargetNames) {
 				relaxedNames.add(relaxedTargetName);
 			}
-			return new DefaultPropertyNamePatternsMatcher(TARGET_NAME_DELIMITERS, true,
-					relaxedNames);
+			return new DefaultPropertyNamePatternsMatcher(TARGET_NAME_DELIMITERS, true, relaxedNames);
 		}
 		// Not ideal, we basically can't filter anything
 		return PropertyNamePatternsMatcher.ALL;
@@ -347,17 +349,13 @@ public class PropertiesConfigurationFactory<T>
 		return this.target != null && Map.class.isAssignableFrom(this.target.getClass());
 	}
 
-	private void validate(RelaxedDataBinder dataBinder) throws BindException {
-		dataBinder.validate();
+	private void checkForBindingErrors(RelaxedDataBinder dataBinder) throws BindException {
 		BindingResult errors = dataBinder.getBindingResult();
 		if (errors.hasErrors()) {
-			this.logger.error("Properties configuration failed validation");
+			logger.error("Properties configuration failed validation");
 			for (ObjectError error : errors.getAllErrors()) {
-				this.logger
-						.error(this.messageSource != null
-								? this.messageSource.getMessage(error,
-										Locale.getDefault()) + " (" + error + ")"
-								: error);
+				logger.error((this.messageSource != null)
+						? this.messageSource.getMessage(error, Locale.getDefault()) + " (" + error + ")" : error);
 			}
 			if (this.exceptionIfInvalid) {
 				throw new BindException(errors);

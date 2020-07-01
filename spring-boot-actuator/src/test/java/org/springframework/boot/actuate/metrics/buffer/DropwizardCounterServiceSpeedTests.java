@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,7 +42,7 @@ import org.springframework.boot.actuate.metrics.reader.MetricRegistryMetricReade
 import org.springframework.lang.UsesJava8;
 import org.springframework.util.StopWatch;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Speeds tests for {@link DropwizardMetricServices DropwizardMetricServices'}
@@ -69,8 +69,7 @@ public class DropwizardCounterServiceSpeedTests {
 
 	private static int threadCount = 2;
 
-	private static final int number = Boolean.getBoolean("performance.test") ? 10000000
-			: 1000000;
+	private static final int number = (Boolean.getBoolean("performance.test") ? 10000000 : 1000000);
 
 	private static int count;
 
@@ -96,8 +95,7 @@ public class DropwizardCounterServiceSpeedTests {
 			public void run() {
 				for (int i = 0; i < number; i++) {
 					String name = sample[i % sample.length];
-					DropwizardCounterServiceSpeedTests.this.counterService
-							.increment(name);
+					DropwizardCounterServiceSpeedTests.this.counterService.increment(name);
 				}
 			}
 		};
@@ -127,7 +125,7 @@ public class DropwizardCounterServiceSpeedTests {
 		});
 		watch.stop();
 		System.err.println("Read(" + count + ")=" + watch.getLastTaskTimeMillis() + "ms");
-		assertEquals(number * threadCount, total.longValue());
+		assertThat(total.longValue()).isEqualTo(number * threadCount);
 	}
 
 }

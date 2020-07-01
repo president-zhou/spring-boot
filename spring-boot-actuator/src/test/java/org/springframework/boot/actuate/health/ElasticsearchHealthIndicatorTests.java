@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,27 +23,22 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.support.PlainActionFuture;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.ClusterAdminClient;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlocks;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
 
-import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 
@@ -52,7 +47,6 @@ import static org.mockito.Matchers.any;
  *
  * @author Andy Wilkinson
  */
-@RunWith(MockitoJUnitRunner.class)
 public class ElasticsearchHealthIndicatorTests {
 
 	@Mock
@@ -70,9 +64,9 @@ public class ElasticsearchHealthIndicatorTests {
 
 	@Before
 	public void setUp() throws Exception {
+		MockitoAnnotations.initMocks(this);
 		given(this.client.admin()).willReturn(this.admin);
 		given(this.admin.cluster()).willReturn(this.cluster);
-
 		this.indicator = new ElasticsearchHealthIndicator(this.client, this.properties);
 	}
 
@@ -80,50 +74,44 @@ public class ElasticsearchHealthIndicatorTests {
 	public void defaultConfigurationQueriesAllIndicesWith100msTimeout() {
 		TestActionFuture responseFuture = new TestActionFuture();
 		responseFuture.onResponse(new StubClusterHealthResponse());
-		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor
-				.forClass(ClusterHealthRequest.class);
+		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor.forClass(ClusterHealthRequest.class);
 		given(this.cluster.health(requestCaptor.capture())).willReturn(responseFuture);
 		Health health = this.indicator.health();
-		assertThat(responseFuture.getTimeout, is(100L));
-		assertThat(requestCaptor.getValue().indices(), is(arrayContaining("_all")));
-		assertThat(health.getStatus(), is(Status.UP));
+		assertThat(responseFuture.getTimeout).isEqualTo(100L);
+		assertThat(requestCaptor.getValue().indices()).contains("_all");
+		assertThat(health.getStatus()).isEqualTo(Status.UP);
 	}
 
 	@Test
 	public void certainIndices() {
 		PlainActionFuture<ClusterHealthResponse> responseFuture = new PlainActionFuture<ClusterHealthResponse>();
 		responseFuture.onResponse(new StubClusterHealthResponse());
-		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor
-				.forClass(ClusterHealthRequest.class);
+		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor.forClass(ClusterHealthRequest.class);
 		given(this.cluster.health(requestCaptor.capture())).willReturn(responseFuture);
-		this.properties.getIndices()
-				.addAll(Arrays.asList("test-index-1", "test-index-2"));
+		this.properties.getIndices().addAll(Arrays.asList("test-index-1", "test-index-2"));
 		Health health = this.indicator.health();
-		assertThat(requestCaptor.getValue().indices(),
-				is(arrayContaining("test-index-1", "test-index-2")));
-		assertThat(health.getStatus(), is(Status.UP));
+		assertThat(requestCaptor.getValue().indices()).contains("test-index-1", "test-index-2");
+		assertThat(health.getStatus()).isEqualTo(Status.UP);
 	}
 
 	@Test
 	public void customTimeout() {
 		TestActionFuture responseFuture = new TestActionFuture();
 		responseFuture.onResponse(new StubClusterHealthResponse());
-		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor
-				.forClass(ClusterHealthRequest.class);
+		ArgumentCaptor<ClusterHealthRequest> requestCaptor = ArgumentCaptor.forClass(ClusterHealthRequest.class);
 		given(this.cluster.health(requestCaptor.capture())).willReturn(responseFuture);
 		this.properties.setResponseTimeout(1000L);
 		this.indicator.health();
-		assertThat(responseFuture.getTimeout, is(1000L));
+		assertThat(responseFuture.getTimeout).isEqualTo(1000L);
 	}
 
 	@Test
 	public void healthDetails() {
 		PlainActionFuture<ClusterHealthResponse> responseFuture = new PlainActionFuture<ClusterHealthResponse>();
 		responseFuture.onResponse(new StubClusterHealthResponse());
-		given(this.cluster.health(any(ClusterHealthRequest.class)))
-				.willReturn(responseFuture);
+		given(this.cluster.health(any(ClusterHealthRequest.class))).willReturn(responseFuture);
 		Health health = this.indicator.health();
-		assertThat(health.getStatus(), is(Status.UP));
+		assertThat(health.getStatus()).isEqualTo(Status.UP);
 		Map<String, Object> details = health.getDetails();
 		assertDetail(details, "clusterName", "test-cluster");
 		assertDetail(details, "activeShards", 1);
@@ -139,38 +127,33 @@ public class ElasticsearchHealthIndicatorTests {
 	public void redResponseMapsToDown() {
 		PlainActionFuture<ClusterHealthResponse> responseFuture = new PlainActionFuture<ClusterHealthResponse>();
 		responseFuture.onResponse(new StubClusterHealthResponse(ClusterHealthStatus.RED));
-		given(this.cluster.health(any(ClusterHealthRequest.class)))
-				.willReturn(responseFuture);
-		assertThat(this.indicator.health().getStatus(), is(Status.DOWN));
+		given(this.cluster.health(any(ClusterHealthRequest.class))).willReturn(responseFuture);
+		assertThat(this.indicator.health().getStatus()).isEqualTo(Status.DOWN);
 	}
 
 	@Test
 	public void yellowResponseMapsToUp() {
 		PlainActionFuture<ClusterHealthResponse> responseFuture = new PlainActionFuture<ClusterHealthResponse>();
-		responseFuture
-				.onResponse(new StubClusterHealthResponse(ClusterHealthStatus.YELLOW));
-		given(this.cluster.health(any(ClusterHealthRequest.class)))
-				.willReturn(responseFuture);
-		assertThat(this.indicator.health().getStatus(), is(Status.UP));
+		responseFuture.onResponse(new StubClusterHealthResponse(ClusterHealthStatus.YELLOW));
+		given(this.cluster.health(any(ClusterHealthRequest.class))).willReturn(responseFuture);
+		assertThat(this.indicator.health().getStatus()).isEqualTo(Status.UP);
 	}
 
 	@Test
 	public void responseTimeout() {
 		PlainActionFuture<ClusterHealthResponse> responseFuture = new PlainActionFuture<ClusterHealthResponse>();
-		given(this.cluster.health(any(ClusterHealthRequest.class)))
-				.willReturn(responseFuture);
+		given(this.cluster.health(any(ClusterHealthRequest.class))).willReturn(responseFuture);
 		Health health = this.indicator.health();
-		assertThat(health.getStatus(), is(Status.DOWN));
-		assertThat((String) health.getDetails().get("error"),
-				containsString(ElasticsearchTimeoutException.class.getName()));
+		assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+		assertThat((String) health.getDetails().get("error")).contains(ElasticsearchTimeoutException.class.getName());
 	}
 
 	@SuppressWarnings("unchecked")
 	private <T> void assertDetail(Map<String, Object> details, String detail, T value) {
-		assertThat((T) details.get(detail), is(equalTo(value)));
+		assertThat((T) details.get(detail)).isEqualTo(value);
 	}
 
-	private final static class StubClusterHealthResponse extends ClusterHealthResponse {
+	private static final class StubClusterHealthResponse extends ClusterHealthResponse {
 
 		private final ClusterHealthStatus status;
 
@@ -179,10 +162,8 @@ public class ElasticsearchHealthIndicatorTests {
 		}
 
 		private StubClusterHealthResponse(ClusterHealthStatus status) {
-			super("test-cluster", new String[0],
-					new ClusterState(null, 0, null, RoutingTable.builder().build(),
-							DiscoveryNodes.builder().build(),
-							ClusterBlocks.builder().build(), null));
+			super("test-cluster", new String[0], new ClusterState(null, 0, null, null, RoutingTable.builder().build(),
+					DiscoveryNodes.builder().build(), ClusterBlocks.builder().build(), null, false));
 			this.status = status;
 		}
 
@@ -228,17 +209,16 @@ public class ElasticsearchHealthIndicatorTests {
 
 	}
 
-	private static class TestActionFuture
-			extends PlainActionFuture<ClusterHealthResponse> {
+	private static class TestActionFuture extends PlainActionFuture<ClusterHealthResponse> {
 
 		private long getTimeout = -1L;
 
 		@Override
-		public ClusterHealthResponse actionGet(long timeoutMillis)
-				throws ElasticsearchException {
+		public ClusterHealthResponse actionGet(long timeoutMillis) throws ElasticsearchException {
 			this.getTimeout = timeoutMillis;
 			return super.actionGet(timeoutMillis);
 		}
 
 	}
+
 }

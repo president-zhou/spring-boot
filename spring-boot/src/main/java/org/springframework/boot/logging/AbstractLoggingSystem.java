@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,12 @@
  */
 
 package org.springframework.boot.logging;
+
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
@@ -27,8 +33,12 @@ import org.springframework.util.SystemPropertyUtils;
  *
  * @author Phillip Webb
  * @author Dave Syer
+ * @since 1.0.0
  */
 public abstract class AbstractLoggingSystem extends LoggingSystem {
+
+	protected static final Comparator<LoggerConfiguration> CONFIGURATION_COMPARATOR = new LoggerConfigurationComparator(
+			ROOT_LOGGER_NAME);
 
 	private final ClassLoader classLoader;
 
@@ -41,8 +51,7 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 	}
 
 	@Override
-	public void initialize(LoggingInitializationContext initializationContext,
-			String configLocation, LogFile logFile) {
+	public void initialize(LoggingInitializationContext initializationContext, String configLocation, LogFile logFile) {
 		if (StringUtils.hasLength(configLocation)) {
 			initializeWithSpecificConfig(initializationContext, configLocation, logFile);
 			return;
@@ -50,15 +59,13 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 		initializeWithConventions(initializationContext, logFile);
 	}
 
-	private void initializeWithSpecificConfig(
-			LoggingInitializationContext initializationContext, String configLocation,
+	private void initializeWithSpecificConfig(LoggingInitializationContext initializationContext, String configLocation,
 			LogFile logFile) {
 		configLocation = SystemPropertyUtils.resolvePlaceholders(configLocation);
 		loadConfiguration(initializationContext, configLocation, logFile);
 	}
 
-	private void initializeWithConventions(
-			LoggingInitializationContext initializationContext, LogFile logFile) {
+	private void initializeWithConventions(LoggingInitializationContext initializationContext, LogFile logFile) {
 		String config = getSelfInitializationConfig();
 		if (config != null && logFile == null) {
 			// self initialization has occurred, reinitialize in case of property changes
@@ -96,8 +103,7 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 
 	private String findConfig(String[] locations) {
 		for (String location : locations) {
-			ClassPathResource resource = new ClassPathResource(location,
-					this.classLoader);
+			ClassPathResource resource = new ClassPathResource(location, this.classLoader);
 			if (resource.exists()) {
 				return "classpath:" + location;
 			}
@@ -122,8 +128,7 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 		String[] locations = getStandardConfigLocations();
 		for (int i = 0; i < locations.length; i++) {
 			String extension = StringUtils.getFilenameExtension(locations[i]);
-			locations[i] = locations[i].substring(0,
-					locations[i].length() - extension.length() - 1) + "-spring."
+			locations[i] = locations[i].substring(0, locations[i].length() - extension.length() - 1) + "-spring."
 					+ extension;
 		}
 		return locations;
@@ -134,8 +139,7 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 	 * @param initializationContext the logging initialization context
 	 * @param logFile the file to load or {@code null} if no log file is to be written
 	 */
-	protected abstract void loadDefaults(
-			LoggingInitializationContext initializationContext, LogFile logFile);
+	protected abstract void loadDefaults(LoggingInitializationContext initializationContext, LogFile logFile);
 
 	/**
 	 * Load a specific configuration.
@@ -143,8 +147,7 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 	 * @param location the location of the configuration to load (never {@code null})
 	 * @param logFile the file to load or {@code null} if no log file is to be written
 	 */
-	protected abstract void loadConfiguration(
-			LoggingInitializationContext initializationContext, String location,
+	protected abstract void loadConfiguration(LoggingInitializationContext initializationContext, String location,
 			LogFile logFile);
 
 	/**
@@ -163,14 +166,53 @@ public abstract class AbstractLoggingSystem extends LoggingSystem {
 
 	protected final String getPackagedConfigFile(String fileName) {
 		String defaultPath = ClassUtils.getPackageName(getClass());
-		defaultPath = defaultPath.replace(".", "/");
+		defaultPath = defaultPath.replace('.', '/');
 		defaultPath = defaultPath + "/" + fileName;
 		defaultPath = "classpath:" + defaultPath;
 		return defaultPath;
 	}
 
 	protected final void applySystemProperties(Environment environment, LogFile logFile) {
-		new LoggingSytemProperties(environment).apply(logFile);
+		new LoggingSystemProperties(environment).apply(logFile);
+	}
+
+	/**
+	 * Maintains a mapping between native levels and {@link LogLevel}.
+	 *
+	 * @param <T> the native level type
+	 */
+	protected static class LogLevels<T> {
+
+		private final Map<LogLevel, T> systemToNative;
+
+		private final Map<T, LogLevel> nativeToSystem;
+
+		public LogLevels() {
+			this.systemToNative = new HashMap<LogLevel, T>();
+			this.nativeToSystem = new HashMap<T, LogLevel>();
+		}
+
+		public void map(LogLevel system, T nativeLevel) {
+			if (!this.systemToNative.containsKey(system)) {
+				this.systemToNative.put(system, nativeLevel);
+			}
+			if (!this.nativeToSystem.containsKey(nativeLevel)) {
+				this.nativeToSystem.put(nativeLevel, system);
+			}
+		}
+
+		public LogLevel convertNativeToSystem(T level) {
+			return this.nativeToSystem.get(level);
+		}
+
+		public T convertSystemToNative(LogLevel level) {
+			return this.systemToNative.get(level);
+		}
+
+		public Set<LogLevel> getSupported() {
+			return new LinkedHashSet<LogLevel>(this.nativeToSystem.values());
+		}
+
 	}
 
 }

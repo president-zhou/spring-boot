@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +28,7 @@ import org.springframework.util.ObjectUtils;
  *
  * @param <T> the value type
  * @author Dave Syer
+ * @since 1.0.0
  */
 public class Metric<T extends Number> {
 
@@ -79,20 +80,13 @@ public class Metric<T extends Number> {
 		return this.timestamp;
 	}
 
-	@Override
-	public String toString() {
-		return "Metric [name=" + this.name + ", value=" + this.value + ", timestamp="
-				+ this.timestamp + "]";
-	}
-
 	/**
 	 * Create a new {@link Metric} with an incremented value.
 	 * @param amount the amount that the new metric will differ from this one
 	 * @return a new {@link Metric} instance
 	 */
 	public Metric<Long> increment(int amount) {
-		return new Metric<Long>(this.getName(),
-				Long.valueOf(this.getValue().longValue() + amount));
+		return new Metric<Long>(this.getName(), Long.valueOf(this.getValue().longValue() + amount));
 	}
 
 	/**
@@ -106,16 +100,6 @@ public class Metric<T extends Number> {
 	}
 
 	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ObjectUtils.nullSafeHashCode(this.name);
-		result = prime * result + ObjectUtils.nullSafeHashCode(this.timestamp);
-		result = prime * result + ObjectUtils.nullSafeHashCode(this.value);
-		return result;
-	}
-
-	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
@@ -126,12 +110,27 @@ public class Metric<T extends Number> {
 		if (obj instanceof Metric) {
 			Metric<?> other = (Metric<?>) obj;
 			boolean rtn = true;
-			rtn &= ObjectUtils.nullSafeEquals(this.name, other.name);
-			rtn &= ObjectUtils.nullSafeEquals(this.timestamp, other.timestamp);
-			rtn &= ObjectUtils.nullSafeEquals(this.value, other.value);
+			rtn = rtn && ObjectUtils.nullSafeEquals(this.name, other.name);
+			rtn = rtn && ObjectUtils.nullSafeEquals(this.timestamp, other.timestamp);
+			rtn = rtn && ObjectUtils.nullSafeEquals(this.value, other.value);
 			return rtn;
 		}
 		return super.equals(obj);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ObjectUtils.nullSafeHashCode(this.name);
+		result = prime * result + ObjectUtils.nullSafeHashCode(this.timestamp);
+		result = prime * result + ObjectUtils.nullSafeHashCode(this.value);
+		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "Metric [name=" + this.name + ", value=" + this.value + ", timestamp=" + this.timestamp + "]";
 	}
 
 }

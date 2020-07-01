@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,13 +20,11 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
 
+import org.hamcrest.CoreMatchers;
 import org.json.JSONException;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link JsonReader}
@@ -42,13 +40,13 @@ public class JsonReaderTests extends AbstractConfigurationMetadataTests {
 	@Test
 	public void emptyMetadata() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("empty");
-		assertEquals(0, rawMetadata.getSources().size());
-		assertEquals(0, rawMetadata.getItems().size());
+		assertThat(rawMetadata.getSources()).isEmpty();
+		assertThat(rawMetadata.getItems()).isEmpty();
 	}
 
 	@Test
 	public void invalidMetadata() throws IOException {
-		this.thrown.expect(JSONException.class);
+		this.thrown.expectCause(CoreMatchers.<Throwable>instanceOf(JSONException.class));
 		readFor("invalid");
 	}
 
@@ -56,7 +54,7 @@ public class JsonReaderTests extends AbstractConfigurationMetadataTests {
 	public void emptyGroupName() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("empty-groups");
 		List<ConfigurationMetadataItem> items = rawMetadata.getItems();
-		assertEquals(2, items.size());
+		assertThat(items).hasSize(2);
 
 		ConfigurationMetadataItem name = items.get(0);
 		assertProperty(name, "name", "name", String.class, null);
@@ -68,79 +66,76 @@ public class JsonReaderTests extends AbstractConfigurationMetadataTests {
 	public void simpleMetadata() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("foo");
 		List<ConfigurationMetadataSource> sources = rawMetadata.getSources();
-		assertEquals(2, sources.size());
+		assertThat(sources).hasSize(2);
 		List<ConfigurationMetadataItem> items = rawMetadata.getItems();
-		assertEquals(4, items.size());
+		assertThat(items).hasSize(4);
 		List<ConfigurationMetadataHint> hints = rawMetadata.getHints();
-		assertEquals(1, hints.size());
+		assertThat(hints).hasSize(1);
 
 		ConfigurationMetadataSource source = sources.get(0);
 		assertSource(source, "spring.foo", "org.acme.Foo", "org.acme.config.FooApp");
-		assertEquals("foo()", source.getSourceMethod());
-		assertEquals("This is Foo.", source.getDescription());
-		assertEquals("This is Foo.", source.getShortDescription());
+		assertThat(source.getSourceMethod()).isEqualTo("foo()");
+		assertThat(source.getDescription()).isEqualTo("This is Foo.");
+		assertThat(source.getShortDescription()).isEqualTo("This is Foo.");
 
 		ConfigurationMetadataItem item = items.get(0);
 		assertProperty(item, "spring.foo.name", "name", String.class, null);
 		assertItem(item, "org.acme.Foo");
 		ConfigurationMetadataItem item2 = items.get(1);
-		assertProperty(item2, "spring.foo.description", "description", String.class,
-				"FooBar");
-		assertEquals("Foo description.", item2.getDescription());
-		assertEquals("Foo description.", item2.getShortDescription());
-		assertNull(item2.getSourceMethod());
+		assertProperty(item2, "spring.foo.description", "description", String.class, "FooBar");
+		assertThat(item2.getDescription()).isEqualTo("Foo description.");
+		assertThat(item2.getShortDescription()).isEqualTo("Foo description.");
+		assertThat(item2.getSourceMethod()).isNull();
 		assertItem(item2, "org.acme.Foo");
 
 		ConfigurationMetadataHint hint = hints.get(0);
-		assertEquals("spring.foo.counter", hint.getId());
-		assertEquals(1, hint.getValueHints().size());
+		assertThat(hint.getId()).isEqualTo("spring.foo.counter");
+		assertThat(hint.getValueHints()).hasSize(1);
 		ValueHint valueHint = hint.getValueHints().get(0);
-		assertEquals(42, valueHint.getValue());
-		assertEquals("Because that's the answer to any question, choose it. \nReally.",
-				valueHint.getDescription());
-		assertEquals("Because that's the answer to any question, choose it.",
-				valueHint.getShortDescription());
-		assertEquals(1, hint.getValueProviders().size());
+		assertThat(valueHint.getValue()).isEqualTo(42);
+		assertThat(valueHint.getDescription())
+				.isEqualTo("Because that's the answer to any question, choose it. \nReally.");
+		assertThat(valueHint.getShortDescription()).isEqualTo("Because that's the answer to any question, choose it.");
+		assertThat(hint.getValueProviders()).hasSize(1);
 		ValueProvider valueProvider = hint.getValueProviders().get(0);
-		assertEquals("handle-as", valueProvider.getName());
-		assertEquals(1, valueProvider.getParameters().size());
-		assertEquals(Integer.class.getName(),
-				valueProvider.getParameters().get("target"));
+		assertThat(valueProvider.getName()).isEqualTo("handle-as");
+		assertThat(valueProvider.getParameters()).hasSize(1);
+		assertThat(valueProvider.getParameters().get("target")).isEqualTo(Integer.class.getName());
 	}
 
 	@Test
 	public void metadataHints() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("bar");
 		List<ConfigurationMetadataHint> hints = rawMetadata.getHints();
-		assertEquals(1, hints.size());
+		assertThat(hints).hasSize(1);
 
 		ConfigurationMetadataHint hint = hints.get(0);
-		assertEquals("spring.bar.description", hint.getId());
-		assertEquals(2, hint.getValueHints().size());
+		assertThat(hint.getId()).isEqualTo("spring.bar.description");
+		assertThat(hint.getValueHints()).hasSize(2);
 		ValueHint valueHint = hint.getValueHints().get(0);
-		assertEquals("one", valueHint.getValue());
-		assertEquals("One.", valueHint.getDescription());
+		assertThat(valueHint.getValue()).isEqualTo("one");
+		assertThat(valueHint.getDescription()).isEqualTo("One.");
 		ValueHint valueHint2 = hint.getValueHints().get(1);
-		assertEquals("two", valueHint2.getValue());
-		assertEquals(null, valueHint2.getDescription());
+		assertThat(valueHint2.getValue()).isEqualTo("two");
+		assertThat(valueHint2.getDescription()).isEqualTo(null);
 
-		assertEquals(2, hint.getValueProviders().size());
+		assertThat(hint.getValueProviders()).hasSize(2);
 		ValueProvider valueProvider = hint.getValueProviders().get(0);
-		assertEquals("handle-as", valueProvider.getName());
-		assertEquals(1, valueProvider.getParameters().size());
-		assertEquals(String.class.getName(), valueProvider.getParameters().get("target"));
+		assertThat(valueProvider.getName()).isEqualTo("handle-as");
+		assertThat(valueProvider.getParameters()).hasSize(1);
+		assertThat(valueProvider.getParameters().get("target")).isEqualTo(String.class.getName());
 		ValueProvider valueProvider2 = hint.getValueProviders().get(1);
-		assertEquals("any", valueProvider2.getName());
-		assertEquals(0, valueProvider2.getParameters().size());
+		assertThat(valueProvider2.getName()).isEqualTo("any");
+		assertThat(valueProvider2.getParameters()).isEmpty();
 	}
 
 	@Test
 	public void rootMetadata() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("root");
 		List<ConfigurationMetadataSource> sources = rawMetadata.getSources();
-		assertEquals(0, sources.size());
+		assertThat(sources).isEmpty();
 		List<ConfigurationMetadataItem> items = rawMetadata.getItems();
-		assertEquals(2, items.size());
+		assertThat(items).hasSize(2);
 		ConfigurationMetadataItem item = items.get(0);
 		assertProperty(item, "spring.root.name", "spring.root.name", String.class, null);
 	}
@@ -149,27 +144,40 @@ public class JsonReaderTests extends AbstractConfigurationMetadataTests {
 	public void deprecatedMetadata() throws IOException {
 		RawConfigurationMetadata rawMetadata = readFor("deprecated");
 		List<ConfigurationMetadataItem> items = rawMetadata.getItems();
-		assertEquals(3, items.size());
+		assertThat(items).hasSize(5);
 
 		ConfigurationMetadataItem item = items.get(0);
 		assertProperty(item, "server.port", "server.port", Integer.class, null);
-		assertTrue(item.isDeprecated());
-		assertEquals("Server namespace has moved to spring.server",
-				item.getDeprecation().getReason());
-		assertEquals("server.spring.port", item.getDeprecation().getReplacement());
+		assertThat(item.isDeprecated()).isTrue();
+		assertThat(item.getDeprecation().getReason()).isEqualTo("Server namespace has moved to spring.server");
+		assertThat(item.getDeprecation().getReplacement()).isEqualTo("server.spring.port");
+		assertThat(item.getDeprecation().getLevel()).isEqualTo(Deprecation.Level.WARNING);
 
 		ConfigurationMetadataItem item2 = items.get(1);
-		assertProperty(item2, "server.cluster-name", "server.cluster-name", String.class,
-				null);
-		assertTrue(item2.isDeprecated());
-		assertEquals(null, item2.getDeprecation().getReason());
-		assertEquals(null, item2.getDeprecation().getReplacement());
+		assertProperty(item2, "server.cluster-name", "server.cluster-name", String.class, null);
+		assertThat(item2.isDeprecated()).isTrue();
+		assertThat(item2.getDeprecation().getReason()).isNull();
+		assertThat(item2.getDeprecation().getReplacement()).isNull();
+		assertThat(item.getDeprecation().getLevel()).isEqualTo(Deprecation.Level.WARNING);
 
 		ConfigurationMetadataItem item3 = items.get(2);
-		assertProperty(item3, "spring.server.name", "spring.server.name", String.class,
-				null);
-		assertFalse(item3.isDeprecated());
-		assertEquals(null, item3.getDeprecation());
+		assertProperty(item3, "spring.server.name", "spring.server.name", String.class, null);
+		assertThat(item3.isDeprecated()).isFalse();
+		assertThat(item3.getDeprecation()).isEqualTo(null);
+
+		ConfigurationMetadataItem item4 = items.get(3);
+		assertProperty(item4, "spring.server-name", "spring.server-name", String.class, null);
+		assertThat(item4.isDeprecated()).isTrue();
+		assertThat(item4.getDeprecation().getReason()).isNull();
+		assertThat(item4.getDeprecation().getReplacement()).isEqualTo("spring.server.name");
+		assertThat(item4.getDeprecation().getLevel()).isEqualTo(Deprecation.Level.ERROR);
+
+		ConfigurationMetadataItem item5 = items.get(4);
+		assertProperty(item5, "spring.server-name2", "spring.server-name2", String.class, null);
+		assertThat(item5.isDeprecated()).isTrue();
+		assertThat(item5.getDeprecation().getReason()).isNull();
+		assertThat(item5.getDeprecation().getReplacement()).isEqualTo("spring.server.name");
+		assertThat(item5.getDeprecation().getLevel()).isEqualTo(Deprecation.Level.WARNING);
 	}
 
 	RawConfigurationMetadata readFor(String path) throws IOException {

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,17 +41,15 @@ import org.springframework.boot.devtools.remote.server.DispatcherFilter;
 import org.springframework.boot.devtools.restart.MockRestarter;
 import org.springframework.boot.devtools.restart.RestartScopeInitializer;
 import org.springframework.boot.devtools.tunnel.client.TunnelClient;
-import org.springframework.boot.test.EnvironmentTestUtils;
-import org.springframework.boot.test.OutputCapture;
+import org.springframework.boot.test.rule.OutputCapture;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.util.SocketUtils;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -86,22 +84,20 @@ public class RemoteClientConfigurationTests {
 
 	@Test
 	public void warnIfDebugAndRestartDisabled() throws Exception {
-		configure("spring.devtools.remote.debug.enabled:false",
-				"spring.devtools.remote.restart.enabled:false");
-		assertThat(this.output.toString(),
-				containsString("Remote restart and debug are both disabled"));
+		configure("spring.devtools.remote.debug.enabled:false", "spring.devtools.remote.restart.enabled:false");
+		assertThat(this.output.toString()).contains("Remote restart and debug are both disabled");
 	}
 
 	@Test
 	public void warnIfNotHttps() throws Exception {
 		configure("http://localhost", true);
-		assertThat(this.output.toString(), containsString("is insecure"));
+		assertThat(this.output.toString()).contains("is insecure");
 	}
 
 	@Test
 	public void doesntWarnIfUsingHttps() throws Exception {
 		configure("https://localhost", true);
-		assertThat(this.output.toString(), not(containsString("is insecure")));
+		assertThat(this.output.toString()).doesNotContain("is insecure");
 	}
 
 	@Test
@@ -117,8 +113,7 @@ public class RemoteClientConfigurationTests {
 		Set<ChangedFiles> changeSet = new HashSet<ChangedFiles>();
 		ClassPathChangedEvent event = new ClassPathChangedEvent(this, changeSet, false);
 		this.context.publishEvent(event);
-		LiveReloadConfiguration configuration = this.context
-				.getBean(LiveReloadConfiguration.class);
+		LiveReloadConfiguration configuration = this.context.getBean(LiveReloadConfiguration.class);
 		configuration.getExecutor().shutdown();
 		configuration.getExecutor().awaitTermination(2, TimeUnit.SECONDS);
 		LiveReloadServer server = this.context.getBean(LiveReloadServer.class);
@@ -154,13 +149,11 @@ public class RemoteClientConfigurationTests {
 		this.context = new AnnotationConfigEmbeddedWebApplicationContext();
 		new RestartScopeInitializer().initialize(this.context);
 		this.context.register(Config.class, RemoteClientConfiguration.class);
-		String remoteUrlProperty = "remoteUrl:" + remoteUrl + ":"
-				+ RemoteClientConfigurationTests.remotePort;
+		String remoteUrlProperty = "remoteUrl:" + remoteUrl + ":" + RemoteClientConfigurationTests.remotePort;
 		EnvironmentTestUtils.addEnvironment(this.context, remoteUrlProperty);
 		EnvironmentTestUtils.addEnvironment(this.context, pairs);
 		if (setSecret) {
-			EnvironmentTestUtils.addEnvironment(this.context,
-					"spring.devtools.remote.secret:secret");
+			EnvironmentTestUtils.addEnvironment(this.context, "spring.devtools.remote.secret:secret");
 		}
 		this.context.refresh();
 	}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,9 +18,9 @@ package org.springframework.boot.autoconfigure.social;
 
 import java.util.List;
 
-import org.thymeleaf.spring4.SpringTemplateEngine;
+import org.thymeleaf.spring4.resourceresolver.SpringResourceResourceResolver;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -72,25 +72,27 @@ public class SocialWebAutoConfiguration {
 	@Configuration
 	@EnableSocial
 	@ConditionalOnWebApplication
-	protected static class SocialAutoConfigurationAdapter
-			extends SocialConfigurerAdapter {
+	protected static class SocialAutoConfigurationAdapter extends SocialConfigurerAdapter {
 
-		@Autowired(required = false)
-		private List<ConnectInterceptor<?>> connectInterceptors;
+		private final List<ConnectInterceptor<?>> connectInterceptors;
 
-		@Autowired(required = false)
-		private List<DisconnectInterceptor<?>> disconnectInterceptors;
+		private final List<DisconnectInterceptor<?>> disconnectInterceptors;
 
-		@Autowired(required = false)
-		private List<ProviderSignInInterceptor<?>> signInInterceptors;
+		private final List<ProviderSignInInterceptor<?>> signInInterceptors;
+
+		public SocialAutoConfigurationAdapter(ObjectProvider<List<ConnectInterceptor<?>>> connectInterceptorsProvider,
+				ObjectProvider<List<DisconnectInterceptor<?>>> disconnectInterceptorsProvider,
+				ObjectProvider<List<ProviderSignInInterceptor<?>>> signInInterceptorsProvider) {
+			this.connectInterceptors = connectInterceptorsProvider.getIfAvailable();
+			this.disconnectInterceptors = disconnectInterceptorsProvider.getIfAvailable();
+			this.signInInterceptors = signInInterceptorsProvider.getIfAvailable();
+		}
 
 		@Bean
 		@ConditionalOnMissingBean(ConnectController.class)
-		public ConnectController connectController(
-				ConnectionFactoryLocator factoryLocator,
+		public ConnectController connectController(ConnectionFactoryLocator factoryLocator,
 				ConnectionRepository repository) {
-			ConnectController controller = new ConnectController(factoryLocator,
-					repository);
+			ConnectController controller = new ConnectController(factoryLocator, repository);
 			if (!CollectionUtils.isEmpty(this.connectInterceptors)) {
 				controller.setConnectInterceptors(this.connectInterceptors);
 			}
@@ -112,11 +114,10 @@ public class SocialWebAutoConfiguration {
 		@Bean
 		@ConditionalOnBean(SignInAdapter.class)
 		@ConditionalOnMissingBean
-		public ProviderSignInController signInController(
-				ConnectionFactoryLocator factoryLocator,
+		public ProviderSignInController signInController(ConnectionFactoryLocator factoryLocator,
 				UsersConnectionRepository usersRepository, SignInAdapter signInAdapter) {
-			ProviderSignInController controller = new ProviderSignInController(
-					factoryLocator, usersRepository, signInAdapter);
+			ProviderSignInController controller = new ProviderSignInController(factoryLocator, usersRepository,
+					signInAdapter);
 			if (!CollectionUtils.isEmpty(this.signInInterceptors)) {
 				controller.setSignInInterceptors(this.signInInterceptors);
 			}
@@ -140,14 +141,14 @@ public class SocialWebAutoConfiguration {
 				}
 			};
 		}
+
 	}
 
 	@Configuration
 	@EnableSocial
 	@ConditionalOnWebApplication
 	@ConditionalOnClass(SecurityContextHolder.class)
-	protected static class AuthenticationUserIdSourceConfig
-			extends SocialConfigurerAdapter {
+	protected static class AuthenticationUserIdSourceConfig extends SocialConfigurerAdapter {
 
 		@Override
 		public UserIdSource getUserIdSource() {
@@ -157,7 +158,7 @@ public class SocialWebAutoConfiguration {
 	}
 
 	@Configuration
-	@ConditionalOnClass(SpringTemplateEngine.class)
+	@ConditionalOnClass(SpringResourceResourceResolver.class)
 	protected static class SpringSocialThymeleafConfig {
 
 		@Bean
@@ -174,10 +175,10 @@ public class SocialWebAutoConfiguration {
 		public String getUserId() {
 			SecurityContext context = SecurityContextHolder.getContext();
 			Authentication authentication = context.getAuthentication();
-			Assert.state(authentication != null,
-					"Unable to get a " + "ConnectionRepository: no user signed in");
+			Assert.state(authentication != null, "Unable to get a " + "ConnectionRepository: no user signed in");
 			return authentication.getName();
 		}
 
 	}
+
 }

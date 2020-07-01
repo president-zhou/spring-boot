@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,28 +20,26 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.metrics.integration.SpringIntegrationMetricReaderTests.TestConfiguration;
 import org.springframework.boot.autoconfigure.integration.IntegrationAutoConfiguration;
 import org.springframework.boot.autoconfigure.jmx.JmxAutoConfiguration;
-import org.springframework.boot.test.IntegrationTest;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.integration.monitor.IntegrationMBeanExporter;
+import org.springframework.integration.support.management.IntegrationManagementConfigurer;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link SpringIntegrationMetricReader}.
  *
  * @author Dave Syer
+ * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(TestConfiguration.class)
-@IntegrationTest("spring.jmx.enabled=true")
+@RunWith(SpringRunner.class)
+@SpringBootTest("spring.jmx.enabled=true")
 @DirtiesContext
 public class SpringIntegrationMetricReaderTests {
 
@@ -50,16 +48,18 @@ public class SpringIntegrationMetricReaderTests {
 
 	@Test
 	public void test() {
-		assertTrue(this.reader.count() > 0);
+		assertThat(this.reader.count() > 0).isTrue();
 	}
 
 	@Configuration
 	@Import({ JmxAutoConfiguration.class, IntegrationAutoConfiguration.class })
 	protected static class TestConfiguration {
+
 		@Bean
-		public SpringIntegrationMetricReader reader(IntegrationMBeanExporter exporter) {
-			return new SpringIntegrationMetricReader(exporter);
+		public SpringIntegrationMetricReader reader(IntegrationManagementConfigurer managementConfigurer) {
+			return new SpringIntegrationMetricReader(managementConfigurer);
 		}
+
 	}
 
 }

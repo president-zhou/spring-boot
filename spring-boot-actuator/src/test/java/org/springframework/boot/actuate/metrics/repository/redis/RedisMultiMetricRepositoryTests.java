@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,9 +37,7 @@ import org.springframework.boot.actuate.metrics.writer.Delta;
 import org.springframework.boot.redis.RedisTestServer;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link RedisMultiMetricRepository}.
@@ -66,67 +64,56 @@ public class RedisMultiMetricRepositoryTests {
 	public void init() {
 		if (this.prefix == null) {
 			this.prefix = "spring.groups";
-			this.repository = new RedisMultiMetricRepository(
-					this.redis.getConnectionFactory());
+			this.repository = new RedisMultiMetricRepository(this.redis.getConnectionFactory());
 		}
 		else {
-			this.repository = new RedisMultiMetricRepository(
-					this.redis.getConnectionFactory(), this.prefix);
+			this.repository = new RedisMultiMetricRepository(this.redis.getConnectionFactory(), this.prefix);
 		}
 	}
 
 	@After
 	public void clear() {
-		assertTrue(new StringRedisTemplate(this.redis.getConnectionFactory()).opsForZSet()
-				.size("keys." + this.prefix) > 0);
+		assertThat(new StringRedisTemplate(this.redis.getConnectionFactory()).opsForZSet().size("keys." + this.prefix))
+				.isGreaterThan(0);
 		this.repository.reset("foo");
 		this.repository.reset("bar");
-		assertNull(new StringRedisTemplate(this.redis.getConnectionFactory())
-				.opsForValue().get(this.prefix + ".foo"));
-		assertNull(new StringRedisTemplate(this.redis.getConnectionFactory())
-				.opsForValue().get(this.prefix + ".bar"));
+		assertThat(new StringRedisTemplate(this.redis.getConnectionFactory()).opsForValue().get(this.prefix + ".foo"))
+				.isNull();
+		assertThat(new StringRedisTemplate(this.redis.getConnectionFactory()).opsForValue().get(this.prefix + ".bar"))
+				.isNull();
 	}
 
 	@Test
 	public void setAndGet() {
-		this.repository.set("foo",
-				Arrays.<Metric<?>>asList(new Metric<Number>("foo.bar", 12.3)));
-		this.repository.set("foo",
-				Arrays.<Metric<?>>asList(new Metric<Number>("foo.bar", 15.3)));
-		assertEquals(15.3, Iterables.collection(this.repository.findAll("foo")).iterator()
-				.next().getValue());
+		this.repository.set("foo", Arrays.<Metric<?>>asList(new Metric<Number>("foo.bar", 12.3)));
+		this.repository.set("foo", Arrays.<Metric<?>>asList(new Metric<Number>("foo.bar", 15.3)));
+		assertThat(Iterables.collection(this.repository.findAll("foo")).iterator().next().getValue()).isEqualTo(15.3);
 	}
 
 	@Test
 	public void setAndGetMultiple() {
 		this.repository.set("foo",
-				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3),
-						new Metric<Number>("foo.bar", 11.3)));
-		assertEquals(2, Iterables.collection(this.repository.findAll("foo")).size());
+				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3), new Metric<Number>("foo.bar", 11.3)));
+		assertThat(Iterables.collection(this.repository.findAll("foo"))).hasSize(2);
 	}
 
 	@Test
 	public void groups() {
 		this.repository.set("foo",
-				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3),
-						new Metric<Number>("foo.bar", 11.3)));
+				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3), new Metric<Number>("foo.bar", 11.3)));
 		this.repository.set("bar",
-				Arrays.<Metric<?>>asList(new Metric<Number>("bar.val", 12.3),
-						new Metric<Number>("bar.foo", 11.3)));
+				Arrays.<Metric<?>>asList(new Metric<Number>("bar.val", 12.3), new Metric<Number>("bar.foo", 11.3)));
 		Collection<String> groups = Iterables.collection(this.repository.groups());
-		assertEquals(2, groups.size());
-		assertTrue("Wrong groups: " + groups, groups.contains("foo"));
+		assertThat(groups).hasSize(2).contains("foo");
 	}
 
 	@Test
 	public void count() {
 		this.repository.set("foo",
-				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3),
-						new Metric<Number>("foo.bar", 11.3)));
+				Arrays.<Metric<?>>asList(new Metric<Number>("foo.val", 12.3), new Metric<Number>("foo.bar", 11.3)));
 		this.repository.set("bar",
-				Arrays.<Metric<?>>asList(new Metric<Number>("bar.val", 12.3),
-						new Metric<Number>("bar.foo", 11.3)));
-		assertEquals(2, this.repository.countGroups());
+				Arrays.<Metric<?>>asList(new Metric<Number>("bar.val", 12.3), new Metric<Number>("bar.foo", 11.3)));
+		assertThat(this.repository.countGroups()).isEqualTo(2);
 	}
 
 	@Test
@@ -142,9 +129,8 @@ public class RedisMultiMetricRepositoryTests {
 				bar = metric;
 			}
 		}
-		assertEquals(2, names.size());
-		assertTrue("Wrong names: " + names, names.contains("foo.bar"));
-		assertEquals(3d, bar.getValue());
+		assertThat(names).hasSize(2).contains("foo.bar");
+		assertThat(bar.getValue()).isEqualTo(3d);
 	}
 
 }

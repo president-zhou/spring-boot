@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.boot.actuate.autoconfigure;
 
 import com.codahale.metrics.MetricRegistry;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.metrics.CounterService;
 import org.springframework.boot.actuate.metrics.GaugeService;
 import org.springframework.boot.actuate.metrics.buffer.BufferCounterService;
@@ -29,7 +28,7 @@ import org.springframework.boot.actuate.metrics.buffer.GaugeBuffers;
 import org.springframework.boot.actuate.metrics.export.Exporter;
 import org.springframework.boot.actuate.metrics.export.MetricCopyExporter;
 import org.springframework.boot.actuate.metrics.repository.InMemoryMetricRepository;
-import org.springframework.boot.actuate.metrics.repository.MetricRepository;
+import org.springframework.boot.actuate.metrics.repository.InMemoryMultiMetricRepository;
 import org.springframework.boot.actuate.metrics.writer.DefaultCounterService;
 import org.springframework.boot.actuate.metrics.writer.DefaultGaugeService;
 import org.springframework.boot.actuate.metrics.writer.MetricWriter;
@@ -47,12 +46,12 @@ import org.springframework.messaging.MessageChannel;
  * user-facing {@link GaugeService} and {@link CounterService} instances, and also back
  * end repositories to catch the data pumped into them.
  * <p>
- * An {@link InMemoryMetricRepository} is always created unless another
- * {@link MetricRepository} is already provided by the user. In general, even if metric
- * data needs to be stored and analysed remotely, it is recommended to use an in-memory
- * repository to buffer metric updates locally. The values can be exported (e.g. on a
- * periodic basis) using an {@link Exporter}, most implementations of which have
- * optimizations for sending data to remote repositories.
+ * In general, even if metric data needs to be stored and analysed remotely, it is
+ * recommended to use in-memory storage to buffer metric updates locally as is done by the
+ * default {@link InMemoryMetricRepository} (Java 7) or {@link CounterBuffers} and
+ * {@link GaugeBuffers} (Java 8). The values can be exported (e.g. on a periodic basis)
+ * using an {@link Exporter}, most implementations of which have optimizations for sending
+ * data to remote repositories.
  * <p>
  * If Spring Messaging is on the classpath and a {@link MessageChannel} called
  * "metricsChannel" is also available, all metric update events are published additionally
@@ -70,13 +69,13 @@ import org.springframework.messaging.MessageChannel;
  * application context via a {@link MetricCopyExporter} firing every 5 seconds (disable
  * this by setting {@code spring.metrics.export.enabled=false}).
  *
+ * @author Dave Syer
+ * @since 1.0.0
  * @see GaugeService
  * @see CounterService
  * @see MetricWriter
  * @see InMemoryMetricRepository
  * @see Exporter
- *
- * @author Dave Syer
  */
 @Configuration
 public class MetricRepositoryAutoConfiguration {
@@ -86,9 +85,11 @@ public class MetricRepositoryAutoConfiguration {
 	@ConditionalOnMissingBean(GaugeService.class)
 	static class LegacyMetricServicesConfiguration {
 
-		@Autowired
-		@ActuatorMetricWriter
-		private MetricWriter writer;
+		private final MetricWriter writer;
+
+		LegacyMetricServicesConfiguration(@ActuatorMetricWriter MetricWriter writer) {
+			this.writer = writer;
+		}
 
 		@Bean
 		@ConditionalOnMissingBean(CounterService.class)
@@ -124,8 +125,7 @@ public class MetricRepositoryAutoConfiguration {
 		@Bean
 		@ExportMetricReader
 		@ConditionalOnMissingBean
-		public BufferMetricReader actuatorMetricReader(CounterBuffers counters,
-				GaugeBuffers gauges) {
+		public BufferMetricReader actuatorMetricReader(CounterBuffers counters, GaugeBuffers gauges) {
 			return new BufferMetricReader(counters, gauges);
 		}
 
@@ -140,6 +140,7 @@ public class MetricRepositoryAutoConfiguration {
 		public BufferGaugeService gaugeService(GaugeBuffers writer) {
 			return new BufferGaugeService(writer);
 		}
+
 	}
 
 	@Configuration
@@ -152,6 +153,14 @@ public class MetricRepositoryAutoConfiguration {
 		@ActuatorMetricWriter
 		public InMemoryMetricRepository actuatorMetricRepository() {
 			return new InMemoryMetricRepository();
+		}
+
+		@Bean
+		@ExportMetricReader
+		@ActuatorMetricWriter
+		public InMemoryMultiMetricRepository actuatorMultiMetricRepository(
+				InMemoryMetricRepository actuatorMetricRepository) {
+			return new InMemoryMultiMetricRepository(actuatorMetricRepository);
 		}
 
 	}

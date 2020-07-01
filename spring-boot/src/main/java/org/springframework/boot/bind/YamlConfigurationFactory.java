@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,11 +48,11 @@ import org.springframework.validation.Validator;
  * @param <T> the configuration type
  * @author Luke Taylor
  * @author Dave Syer
+ * @since 1.0.0
  */
-public class YamlConfigurationFactory<T>
-		implements FactoryBean<T>, MessageSourceAware, InitializingBean {
+public class YamlConfigurationFactory<T> implements FactoryBean<T>, MessageSourceAware, InitializingBean {
 
-	private final Log logger = LogFactory.getLog(getClass());
+	private static final Log logger = LogFactory.getLog(YamlConfigurationFactory.class);
 
 	private final Class<?> type;
 
@@ -76,7 +76,7 @@ public class YamlConfigurationFactory<T>
 	 * @param type the root type
 	 */
 	public YamlConfigurationFactory(Class<?> type) {
-		Assert.notNull(type);
+		Assert.notNull(type, "type must not be null");
 		this.type = type;
 	}
 
@@ -94,8 +94,7 @@ public class YamlConfigurationFactory<T>
 	 * @param propertyAliases the property aliases
 	 */
 	public void setPropertyAliases(Map<Class<?>, Map<String, String>> propertyAliases) {
-		this.propertyAliases = new HashMap<Class<?>, Map<String, String>>(
-				propertyAliases);
+		this.propertyAliases = new HashMap<Class<?>, Map<String, String>>(propertyAliases);
 	}
 
 	/**
@@ -122,6 +121,14 @@ public class YamlConfigurationFactory<T>
 		this.validator = validator;
 	}
 
+	/**
+	 * Set a flag to indicate that an exception should be raised if a Validator is
+	 * available and validation fails.
+	 * @param exceptionIfInvalid the flag to set
+	 * @deprecated as of 1.5, do not specify a {@link Validator} if validation should not
+	 * occur
+	 */
+	@Deprecated
 	public void setExceptionIfInvalid(boolean exceptionIfInvalid) {
 		this.exceptionIfInvalid = exceptionIfInvalid;
 	}
@@ -131,17 +138,15 @@ public class YamlConfigurationFactory<T>
 	public void afterPropertiesSet() throws Exception {
 		if (this.yaml == null) {
 			Assert.state(this.resource != null, "Resource should not be null");
-			this.yaml = StreamUtils.copyToString(this.resource.getInputStream(),
-					Charset.defaultCharset());
+			this.yaml = StreamUtils.copyToString(this.resource.getInputStream(), Charset.defaultCharset());
 		}
-		Assert.state(this.yaml != null, "Yaml document should not be null: "
-				+ "either set it directly or set the resource to load it from");
+		Assert.state(this.yaml != null,
+				"Yaml document should not be null: " + "either set it directly or set the resource to load it from");
 		try {
-			if (this.logger.isTraceEnabled()) {
-				this.logger.trace("Yaml document is\n" + this.yaml);
+			if (logger.isTraceEnabled()) {
+				logger.trace(String.format("Yaml document is %n%s", this.yaml));
 			}
-			Constructor constructor = new YamlJavaBeanPropertyConstructor(this.type,
-					this.propertyAliases);
+			Constructor constructor = new YamlJavaBeanPropertyConstructor(this.type, this.propertyAliases);
 			this.configuration = (T) (new Yaml(constructor)).load(this.yaml);
 			if (this.validator != null) {
 				validate();
@@ -151,29 +156,31 @@ public class YamlConfigurationFactory<T>
 			if (this.exceptionIfInvalid) {
 				throw ex;
 			}
-			this.logger.error("Failed to load YAML validation bean. "
-					+ "Your YAML file may be invalid.", ex);
+			logger.error("Failed to load YAML validation bean. " + "Your YAML file may be invalid.", ex);
 		}
 	}
 
 	private void validate() throws BindException {
-		BindingResult errors = new BeanPropertyBindingResult(this.configuration,
-				"configuration");
+		BindingResult errors = new BeanPropertyBindingResult(this.configuration, "configuration");
 		this.validator.validate(this.configuration, errors);
 		if (errors.hasErrors()) {
-			this.logger.error("YAML configuration failed validation");
+			logger.error("YAML configuration failed validation");
 			for (ObjectError error : errors.getAllErrors()) {
-				this.logger
-						.error(this.messageSource != null
-								? this.messageSource.getMessage(error,
-										Locale.getDefault()) + " (" + error + ")"
-								: error);
+				logger.error(getErrorMessage(error));
 			}
 			if (this.exceptionIfInvalid) {
 				BindException summary = new BindException(errors);
 				throw summary;
 			}
 		}
+	}
+
+	private Object getErrorMessage(ObjectError error) {
+		if (this.messageSource != null) {
+			Locale locale = Locale.getDefault();
+			return this.messageSource.getMessage(error, locale) + " (" + error + ")";
+		}
+		return error;
 	}
 
 	@Override

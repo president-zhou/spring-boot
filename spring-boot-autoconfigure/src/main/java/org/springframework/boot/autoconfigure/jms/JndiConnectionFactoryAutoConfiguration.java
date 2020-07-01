@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,6 @@ import java.util.Arrays;
 import javax.jms.ConnectionFactory;
 import javax.naming.NamingException;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
@@ -53,17 +52,18 @@ import org.springframework.util.StringUtils;
 public class JndiConnectionFactoryAutoConfiguration {
 
 	// Keep these in sync with the condition below
-	private static String[] JNDI_LOCATIONS = { "java:/JmsXA",
-			"java:/XAConnectionFactory" };
+	private static String[] JNDI_LOCATIONS = { "java:/JmsXA", "java:/XAConnectionFactory" };
 
-	@Autowired
-	private JmsProperties properties;
+	private final JmsProperties properties;
+
+	public JndiConnectionFactoryAutoConfiguration(JmsProperties properties) {
+		this.properties = properties;
+	}
 
 	@Bean
 	public ConnectionFactory connectionFactory() throws NamingException {
 		if (StringUtils.hasLength(this.properties.getJndiName())) {
-			return new JndiLocatorDelegate().lookup(this.properties.getJndiName(),
-					ConnectionFactory.class);
+			return new JndiLocatorDelegate().lookup(this.properties.getJndiName(), ConnectionFactory.class);
 		}
 		return findJndiConnectionFactory();
 	}
@@ -78,8 +78,7 @@ public class JndiConnectionFactoryAutoConfiguration {
 			}
 		}
 		throw new IllegalStateException(
-				"Unable to find ConnectionFactory in JNDI locations "
-						+ Arrays.asList(JNDI_LOCATIONS));
+				"Unable to find ConnectionFactory in JNDI locations " + Arrays.asList(JNDI_LOCATIONS));
 	}
 
 	/**
@@ -93,10 +92,12 @@ public class JndiConnectionFactoryAutoConfiguration {
 
 		@ConditionalOnJndi({ "java:/JmsXA", "java:/XAConnectionFactory" })
 		static class Jndi {
+
 		}
 
 		@ConditionalOnProperty(prefix = "spring.jms", name = "jndi-name")
 		static class Property {
+
 		}
 
 	}

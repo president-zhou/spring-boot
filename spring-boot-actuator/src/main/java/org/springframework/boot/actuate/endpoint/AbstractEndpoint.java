@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,11 +16,11 @@
 
 package org.springframework.boot.actuate.endpoint;
 
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
+import java.util.regex.Pattern;
 
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
+import org.springframework.util.Assert;
 
 /**
  * Abstract base for {@link Endpoint} implementations.
@@ -28,8 +28,11 @@ import org.springframework.core.env.Environment;
  * @param <T> the endpoint data type
  * @author Phillip Webb
  * @author Christian Dupuis
+ * @since 1.0.0
  */
 public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAware {
+
+	private static final Pattern ID_PATTERN = Pattern.compile("\\w+");
 
 	private Environment environment;
 
@@ -37,8 +40,6 @@ public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAwa
 	 * Endpoint identifier. With HTTP monitoring the identifier of the endpoint is mapped
 	 * to a URL (e.g. 'foo' is mapped to '/foo').
 	 */
-	@NotNull
-	@Pattern(regexp = "\\w+", message = "ID must only contains letters, numbers and '_'")
 	private String id;
 
 	private final boolean sensitiveDefault;
@@ -69,7 +70,7 @@ public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAwa
 	 * @param sensitive if the endpoint is sensitive by default
 	 */
 	public AbstractEndpoint(String id, boolean sensitive) {
-		this.id = id;
+		setId(id);
 		this.sensitiveDefault = sensitive;
 	}
 
@@ -80,7 +81,7 @@ public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAwa
 	 * @param enabled if the endpoint is enabled or not.
 	 */
 	public AbstractEndpoint(String id, boolean sensitive, boolean enabled) {
-		this.id = id;
+		setId(id);
 		this.sensitiveDefault = sensitive;
 		this.enabled = enabled;
 	}
@@ -100,6 +101,8 @@ public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAwa
 	}
 
 	public void setId(String id) {
+		Assert.notNull(id, "Id must not be null");
+		Assert.isTrue(ID_PATTERN.matcher(id).matches(), "Id must only contains letters, numbers and '_'");
 		this.id = id;
 	}
 
@@ -114,8 +117,7 @@ public abstract class AbstractEndpoint<T> implements Endpoint<T>, EnvironmentAwa
 
 	@Override
 	public boolean isSensitive() {
-		return EndpointProperties.isSensitive(this.environment, this.sensitive,
-				this.sensitiveDefault);
+		return EndpointProperties.isSensitive(this.environment, this.sensitive, this.sensitiveDefault);
 	}
 
 	public void setSensitive(Boolean sensitive) {

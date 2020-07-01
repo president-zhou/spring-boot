@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,12 @@
 
 package org.springframework.boot.cli;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ServiceLoader;
 
 import org.springframework.boot.cli.command.CommandFactory;
@@ -25,12 +31,15 @@ import org.springframework.boot.cli.command.core.HintCommand;
 import org.springframework.boot.cli.command.core.VersionCommand;
 import org.springframework.boot.cli.command.shell.ShellCommand;
 import org.springframework.boot.loader.tools.LogbackInitializer;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.SystemPropertyUtils;
 
 /**
  * Spring Command Line Interface. This is the main entry-point for the Spring command line
  * application.
  *
  * @author Phillip Webb
+ * @since 1.0.0
  * @see #main(String...)
  * @see CommandRunner
  */
@@ -44,6 +53,7 @@ public final class SpringCli {
 		LogbackInitializer.initialize();
 
 		CommandRunner runner = new CommandRunner("spring");
+		ClassUtils.overrideThreadContextClassLoader(createExtendedClassLoader(runner));
 		runner.addCommand(new HelpCommand(runner));
 		addServiceLoaderCommands(runner);
 		runner.addCommand(new ShellCommand());
@@ -59,11 +69,33 @@ public final class SpringCli {
 	}
 
 	private static void addServiceLoaderCommands(CommandRunner runner) {
-		ServiceLoader<CommandFactory> factories = ServiceLoader.load(CommandFactory.class,
-				runner.getClass().getClassLoader());
+		ServiceLoader<CommandFactory> factories = ServiceLoader.load(CommandFactory.class);
 		for (CommandFactory factory : factories) {
 			runner.addCommands(factory.getCommands());
 		}
+	}
+
+	private static URLClassLoader createExtendedClassLoader(CommandRunner runner) {
+		return new URLClassLoader(getExtensionURLs(), runner.getClass().getClassLoader());
+	}
+
+	private static URL[] getExtensionURLs() {
+		List<URL> urls = new ArrayList<URL>();
+		String home = SystemPropertyUtils.resolvePlaceholders("${spring.home:${SPRING_HOME:.}}");
+		File extDirectory = new File(new File(home, "lib"), "ext");
+		if (extDirectory.isDirectory()) {
+			for (File file : extDirectory.listFiles()) {
+				if (file.getName().endsWith(".jar")) {
+					try {
+						urls.add(file.toURI().toURL());
+					}
+					catch (MalformedURLException ex) {
+						throw new IllegalStateException(ex);
+					}
+				}
+			}
+		}
+		return urls.toArray(new URL[urls.size()]);
 	}
 
 }

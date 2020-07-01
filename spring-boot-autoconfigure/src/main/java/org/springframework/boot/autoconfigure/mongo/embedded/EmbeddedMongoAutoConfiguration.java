@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 import de.flapdoodle.embed.mongo.Command;
 import de.flapdoodle.embed.mongo.MongodExecutable;
@@ -35,10 +34,14 @@ import de.flapdoodle.embed.mongo.config.IMongodConfig;
 import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
 import de.flapdoodle.embed.mongo.config.Net;
 import de.flapdoodle.embed.mongo.config.RuntimeConfigBuilder;
+import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Feature;
 import de.flapdoodle.embed.mongo.distribution.IFeatureAwareVersion;
 import de.flapdoodle.embed.process.config.IRuntimeConfig;
 import de.flapdoodle.embed.process.config.io.ProcessOutput;
+import de.flapdoodle.embed.process.config.store.IDownloadPath;
+import de.flapdoodle.embed.process.distribution.Distribution;
+import de.flapdoodle.embed.process.distribution.Platform;
 import de.flapdoodle.embed.process.io.Processors;
 import de.flapdoodle.embed.process.io.Slf4jLevel;
 import de.flapdoodle.embed.process.io.progress.Slf4jProgressListener;
@@ -47,7 +50,6 @@ import de.flapdoodle.embed.process.store.ArtifactStoreBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -71,58 +73,41 @@ import org.springframework.util.Assert;
  *
  * @author Henryk Konsek
  * @author Andy Wilkinson
+ * @author Yogesh Lonkar
  * @since 1.3.0
  */
 @Configuration
 @EnableConfigurationProperties({ MongoProperties.class, EmbeddedMongoProperties.class })
 @AutoConfigureBefore(MongoAutoConfiguration.class)
-@ConditionalOnClass({ Mongo.class, MongodStarter.class })
+@ConditionalOnClass({ MongoClient.class, MongodStarter.class })
 public class EmbeddedMongoAutoConfiguration {
 
 	private static final byte[] IP4_LOOPBACK_ADDRESS = { 127, 0, 0, 1 };
 
-	private static final byte[] IP6_LOOPBACK_ADDRESS = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 1 };
+	private static final byte[] IP6_LOOPBACK_ADDRESS = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
-	@Autowired
-	private MongoProperties properties;
+	private final MongoProperties properties;
 
-	@Autowired
-	private EmbeddedMongoProperties embeddedProperties;
+	private final EmbeddedMongoProperties embeddedProperties;
 
-	@Autowired
-	private ApplicationContext context;
+	private final ApplicationContext context;
 
-	@Autowired(required = false)
-	private IRuntimeConfig runtimeConfig;
+	private final IRuntimeConfig runtimeConfig;
 
-	@Bean
-	@ConditionalOnMissingBean
-	@ConditionalOnClass(Logger.class)
-	public IRuntimeConfig embeddedMongoRuntimeConfig() {
-		Logger logger = LoggerFactory
-				.getLogger(getClass().getPackage().getName() + ".EmbeddedMongo");
-		ProcessOutput processOutput = new ProcessOutput(
-				Processors.logTo(logger, Slf4jLevel.INFO),
-				Processors.logTo(logger, Slf4jLevel.ERROR), Processors.named("[console>]",
-						Processors.logTo(logger, Slf4jLevel.DEBUG)));
-		return new RuntimeConfigBuilder().defaultsWithLogger(Command.MongoD, logger)
-				.processOutput(processOutput).artifactStore(getArtifactStore(logger))
-				.build();
-	}
-
-	private ArtifactStoreBuilder getArtifactStore(Logger logger) {
-		return new ExtractedArtifactStoreBuilder().defaults(Command.MongoD)
-				.download(new DownloadConfigBuilder().defaultsForCommand(Command.MongoD)
-						.progressListener(new Slf4jProgressListener(logger)).build());
+	public EmbeddedMongoAutoConfiguration(MongoProperties properties, EmbeddedMongoProperties embeddedProperties,
+			ApplicationContext context, IRuntimeConfig runtimeConfig) {
+		this.properties = properties;
+		this.embeddedProperties = embeddedProperties;
+		this.context = context;
+		this.runtimeConfig = runtimeConfig;
 	}
 
 	@Bean(initMethod = "start", destroyMethod = "stop")
 	@ConditionalOnMissingBean
-	public MongodExecutable embeddedMongoServer(IMongodConfig mongodConfig)
-			throws IOException {
-		if (getPort() == 0) {
-			publishPortInfo(mongodConfig.net().getPort());
+	public MongodExecutable embeddedMongoServer(IMongodConfig mongodConfig) throws IOException {
+		Integer configuredPort = this.properties.getPort();
+		if (configuredPort == null || configuredPort == 0) {
+			setEmbeddedPort(mongodConfig.net().getPort());
 		}
 		MongodStarter mongodStarter = getMongodStarter(this.runtimeConfig);
 		return mongodStarter.prepare(mongodConfig);
@@ -139,44 +124,42 @@ public class EmbeddedMongoAutoConfiguration {
 	@ConditionalOnMissingBean
 	public IMongodConfig embeddedMongoConfiguration() throws IOException {
 		IFeatureAwareVersion featureAwareVersion = new ToStringFriendlyFeatureAwareVersion(
-				this.embeddedProperties.getVersion(),
-				this.embeddedProperties.getFeatures());
-		MongodConfigBuilder builder = new MongodConfigBuilder()
-				.version(featureAwareVersion);
-		if (getPort() > 0) {
-			builder.net(new Net(getHost().getHostAddress(), getPort(),
-					Network.localhostIsIPv6()));
+				this.embeddedProperties.getVersion(), this.embeddedProperties.getFeatures());
+		MongodConfigBuilder builder = new MongodConfigBuilder().version(featureAwareVersion);
+		org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoProperties.Storage storage = this.embeddedProperties
+				.getStorage();
+		if (storage != null) {
+			String databaseDir = storage.getDatabaseDir();
+			String replSetName = storage.getReplSetName();
+			int oplogSize = (storage.getOplogSize() != null) ? storage.getOplogSize() : 0;
+			builder.replication(new Storage(databaseDir, replSetName, oplogSize));
+		}
+		Integer configuredPort = this.properties.getPort();
+		if (configuredPort != null && configuredPort > 0) {
+			builder.net(new Net(getHost().getHostAddress(), configuredPort, Network.localhostIsIPv6()));
 		}
 		else {
-			builder.net(new Net(getHost().getHostAddress(),
-					Network.getFreeServerPort(getHost()), Network.localhostIsIPv6()));
+			builder.net(new Net(getHost().getHostAddress(), Network.getFreeServerPort(getHost()),
+					Network.localhostIsIPv6()));
 		}
 		return builder.build();
 	}
 
-	private int getPort() {
-		if (this.properties.getPort() == null) {
-			return MongoProperties.DEFAULT_PORT;
-		}
-		return this.properties.getPort();
-	}
-
 	private InetAddress getHost() throws UnknownHostException {
 		if (this.properties.getHost() == null) {
-			return InetAddress.getByAddress(Network.localhostIsIPv6()
-					? IP6_LOOPBACK_ADDRESS : IP4_LOOPBACK_ADDRESS);
+			return InetAddress.getByAddress(Network.localhostIsIPv6() ? IP6_LOOPBACK_ADDRESS : IP4_LOOPBACK_ADDRESS);
 		}
 		return InetAddress.getByName(this.properties.getHost());
 	}
 
-	private void publishPortInfo(int port) {
+	private void setEmbeddedPort(int port) {
 		setPortProperty(this.context, port);
 	}
 
 	private void setPortProperty(ApplicationContext currentContext, int port) {
 		if (currentContext instanceof ConfigurableApplicationContext) {
-			MutablePropertySources sources = ((ConfigurableApplicationContext) currentContext)
-					.getEnvironment().getPropertySources();
+			MutablePropertySources sources = ((ConfigurableApplicationContext) currentContext).getEnvironment()
+					.getPropertySources();
 			getMongoPorts(sources).put("local.mongo.port", port);
 		}
 		if (currentContext.getParent() != null) {
@@ -188,11 +171,33 @@ public class EmbeddedMongoAutoConfiguration {
 	private Map<String, Object> getMongoPorts(MutablePropertySources sources) {
 		PropertySource<?> propertySource = sources.get("mongo.ports");
 		if (propertySource == null) {
-			propertySource = new MapPropertySource("mongo.ports",
-					new HashMap<String, Object>());
+			propertySource = new MapPropertySource("mongo.ports", new HashMap<String, Object>());
 			sources.addFirst(propertySource);
 		}
 		return (Map<String, Object>) propertySource.getSource();
+	}
+
+	@Configuration
+	@ConditionalOnClass(Logger.class)
+	@ConditionalOnMissingBean(IRuntimeConfig.class)
+	static class RuntimeConfigConfiguration {
+
+		@Bean
+		public IRuntimeConfig embeddedMongoRuntimeConfig() {
+			Logger logger = LoggerFactory.getLogger(getClass().getPackage().getName() + ".EmbeddedMongo");
+			ProcessOutput processOutput = new ProcessOutput(Processors.logTo(logger, Slf4jLevel.INFO),
+					Processors.logTo(logger, Slf4jLevel.ERROR),
+					Processors.named("[console>]", Processors.logTo(logger, Slf4jLevel.DEBUG)));
+			return new RuntimeConfigBuilder().defaultsWithLogger(Command.MongoD, logger).processOutput(processOutput)
+					.artifactStore(getArtifactStore(logger)).build();
+		}
+
+		private ArtifactStoreBuilder getArtifactStore(Logger logger) {
+			return new ExtractedArtifactStoreBuilder().defaults(Command.MongoD)
+					.download(new HttpsDownloadConfigBuilder().defaultsForCommand(Command.MongoD)
+							.progressListener(new Slf4jProgressListener(logger)).build());
+		}
+
 	}
 
 	/**
@@ -201,8 +206,7 @@ public class EmbeddedMongoAutoConfiguration {
 	 */
 	@Configuration
 	@ConditionalOnClass({ MongoClient.class, MongoClientFactoryBean.class })
-	protected static class EmbeddedMongoDependencyConfiguration
-			extends MongoClientDependsOnBeanFactoryPostProcessor {
+	protected static class EmbeddedMongoDependencyConfiguration extends MongoClientDependsOnBeanFactoryPostProcessor {
 
 		public EmbeddedMongoDependencyConfiguration() {
 			super("embeddedMongoServer");
@@ -214,19 +218,16 @@ public class EmbeddedMongoAutoConfiguration {
 	 * A workaround for the lack of a {@code toString} implementation on
 	 * {@code GenericFeatureAwareVersion}.
 	 */
-	private final static class ToStringFriendlyFeatureAwareVersion
-			implements IFeatureAwareVersion {
+	private static final class ToStringFriendlyFeatureAwareVersion implements IFeatureAwareVersion {
 
 		private final String version;
 
 		private final Set<Feature> features;
 
-		private ToStringFriendlyFeatureAwareVersion(String version,
-				Set<Feature> features) {
+		private ToStringFriendlyFeatureAwareVersion(String version, Set<Feature> features) {
 			Assert.notNull(version, "version must not be null");
 			this.version = version;
-			this.features = (features == null ? Collections.<Feature>emptySet()
-					: features);
+			this.features = (features != null) ? features : Collections.<Feature>emptySet();
 		}
 
 		@Override
@@ -240,8 +241,21 @@ public class EmbeddedMongoAutoConfiguration {
 		}
 
 		@Override
-		public String toString() {
-			return this.version;
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			}
+			if (obj == null) {
+				return false;
+			}
+			if (getClass() == obj.getClass()) {
+				ToStringFriendlyFeatureAwareVersion other = (ToStringFriendlyFeatureAwareVersion) obj;
+				boolean equals = true;
+				equals = equals && this.features.equals(other.features);
+				equals = equals && this.version.equals(other.version);
+				return equals;
+			}
+			return super.equals(obj);
 		}
 
 		@Override
@@ -254,21 +268,31 @@ public class EmbeddedMongoAutoConfiguration {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			if (this == obj) {
-				return true;
+		public String toString() {
+			return this.version;
+		}
+
+	}
+
+	private static class HttpsDownloadConfigBuilder extends DownloadConfigBuilder {
+
+		@Override
+		public DownloadConfigBuilder defaultsForCommand(Command command) {
+			super.defaultsForCommand(command);
+			downloadPath().setDefault(new PlatformDependentHttpsDownloadPath());
+			return this;
+		}
+
+		private static class PlatformDependentHttpsDownloadPath implements IDownloadPath {
+
+			@Override
+			public String getPath(Distribution distribution) {
+				if (distribution.getPlatform() == Platform.Windows) {
+					return "https://downloads.mongodb.org/";
+				}
+				return "https://fastdl.mongodb.org/";
 			}
-			if (obj == null) {
-				return false;
-			}
-			if (getClass() == obj.getClass()) {
-				ToStringFriendlyFeatureAwareVersion other = (ToStringFriendlyFeatureAwareVersion) obj;
-				boolean equals = true;
-				equals &= this.features.equals(other.features);
-				equals &= this.version.equals(other.version);
-				return equals;
-			}
-			return super.equals(obj);
+
 		}
 
 	}

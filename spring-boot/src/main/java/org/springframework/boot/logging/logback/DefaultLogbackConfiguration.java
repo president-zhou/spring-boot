@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 
 package org.springframework.boot.logging.logback;
 
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 
 import ch.qos.logback.classic.Level;
@@ -26,6 +27,7 @@ import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.core.rolling.FixedWindowRollingPolicy;
 import ch.qos.logback.core.rolling.RollingFileAppender;
 import ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy;
+import ch.qos.logback.core.util.FileSize;
 import ch.qos.logback.core.util.OptionHelper;
 
 import org.springframework.boot.bind.RelaxedPropertyResolver;
@@ -34,6 +36,7 @@ import org.springframework.boot.logging.LoggingInitializationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.PropertyResolver;
 import org.springframework.core.env.PropertySourcesPropertyResolver;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * Default logback configuration used by Spring Boot. Uses {@link LogbackConfigurator} to
@@ -41,7 +44,6 @@ import org.springframework.core.env.PropertySourcesPropertyResolver;
  * and {@code file-appender.xml} files provided for classic {@code logback.xml} use.
  *
  * @author Phillip Webb
- * @since 1.1.2
  */
 class DefaultLogbackConfiguration {
 
@@ -59,8 +61,7 @@ class DefaultLogbackConfiguration {
 
 	private final LogFile logFile;
 
-	DefaultLogbackConfiguration(LoggingInitializationContext initializationContext,
-			LogFile logFile) {
+	DefaultLogbackConfiguration(LoggingInitializationContext initializationContext, LogFile logFile) {
 		this.patterns = getPatternsResolver(initializationContext.getEnvironment());
 		this.logFile = logFile;
 	}
@@ -69,7 +70,7 @@ class DefaultLogbackConfiguration {
 		if (environment == null) {
 			return new PropertySourcesPropertyResolver(null);
 		}
-		return new RelaxedPropertyResolver(environment, "logging.pattern.");
+		return RelaxedPropertyResolver.ignoringUnresolvableNestedPlaceholders(environment, "logging.pattern.");
 	}
 
 	public void apply(LogbackConfigurator config) {
@@ -77,8 +78,7 @@ class DefaultLogbackConfiguration {
 			base(config);
 			Appender<ILoggingEvent> consoleAppender = consoleAppender(config);
 			if (this.logFile != null) {
-				Appender<ILoggingEvent> fileAppender = fileAppender(config,
-						this.logFile.toString());
+				Appender<ILoggingEvent> fileAppender = fileAppender(config, this.logFile.toString());
 				config.root(Level.INFO, consoleAppender, fileAppender);
 			}
 			else {
@@ -91,11 +91,9 @@ class DefaultLogbackConfiguration {
 		config.conversionRule("clr", ColorConverter.class);
 		config.conversionRule("wex", WhitespaceThrowableProxyConverter.class);
 		config.conversionRule("wEx", ExtendedWhitespaceThrowableProxyConverter.class);
-		LevelRemappingAppender debugRemapAppender = new LevelRemappingAppender(
-				"org.springframework.boot");
+		LevelRemappingAppender debugRemapAppender = new LevelRemappingAppender("org.springframework.boot");
 		config.start(debugRemapAppender);
 		config.appender("DEBUG_LEVEL_REMAPPER", debugRemapAppender);
-		config.logger("", Level.ERROR);
 		config.logger("org.apache.catalina.startup.DigesterFactory", Level.ERROR);
 		config.logger("org.apache.catalina.util.LifecycleBase", Level.ERROR);
 		config.logger("org.apache.coyote.http11.Http11NioProtocol", Level.WARN);
@@ -105,10 +103,8 @@ class DefaultLogbackConfiguration {
 		config.logger("org.crsh.ssh", Level.WARN);
 		config.logger("org.eclipse.jetty.util.component.AbstractLifeCycle", Level.ERROR);
 		config.logger("org.hibernate.validator.internal.util.Version", Level.WARN);
-		config.logger("org.springframework.boot.actuate.autoconfigure."
-				+ "CrshAutoConfiguration", Level.WARN);
-		config.logger("org.springframework.boot.actuate.endpoint.jmx", null, false,
-				debugRemapAppender);
+		config.logger("org.springframework.boot.actuate.autoconfigure." + "CrshAutoConfiguration", Level.WARN);
+		config.logger("org.springframework.boot.actuate.endpoint.jmx", null, false, debugRemapAppender);
 		config.logger("org.thymeleaf", null, false, debugRemapAppender);
 	}
 
@@ -124,30 +120,41 @@ class DefaultLogbackConfiguration {
 		return appender;
 	}
 
-	private Appender<ILoggingEvent> fileAppender(LogbackConfigurator config,
-			String logFile) {
+	private Appender<ILoggingEvent> fileAppender(LogbackConfigurator config, String logFile) {
 		RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<ILoggingEvent>();
 		PatternLayoutEncoder encoder = new PatternLayoutEncoder();
 		String logPattern = this.patterns.getProperty("file", FILE_LOG_PATTERN);
 		encoder.setPattern(OptionHelper.substVars(logPattern, config.getContext()));
 		appender.setEncoder(encoder);
 		config.start(encoder);
-
 		appender.setFile(logFile);
+		setRollingPolicy(appender, config, logFile);
+		setMaxFileSize(appender, config);
+		config.appender("FILE", appender);
+		return appender;
+	}
 
+	private void setRollingPolicy(RollingFileAppender<ILoggingEvent> appender, LogbackConfigurator config,
+			String logFile) {
 		FixedWindowRollingPolicy rollingPolicy = new FixedWindowRollingPolicy();
 		rollingPolicy.setFileNamePattern(logFile + ".%i");
 		appender.setRollingPolicy(rollingPolicy);
 		rollingPolicy.setParent(appender);
 		config.start(rollingPolicy);
+	}
 
+	private void setMaxFileSize(RollingFileAppender<ILoggingEvent> appender, LogbackConfigurator config) {
 		SizeBasedTriggeringPolicy<ILoggingEvent> triggeringPolicy = new SizeBasedTriggeringPolicy<ILoggingEvent>();
-		triggeringPolicy.setMaxFileSize("10MB");
+		try {
+			triggeringPolicy.setMaxFileSize(FileSize.valueOf("10MB"));
+		}
+		catch (NoSuchMethodError ex) {
+			// Logback < 1.1.8 used String configuration
+			Method method = ReflectionUtils.findMethod(SizeBasedTriggeringPolicy.class, "setMaxFileSize", String.class);
+			ReflectionUtils.invokeMethod(method, triggeringPolicy, "10MB");
+		}
 		appender.setTriggeringPolicy(triggeringPolicy);
 		config.start(triggeringPolicy);
-
-		config.appender("FILE", appender);
-		return appender;
 	}
 
 }

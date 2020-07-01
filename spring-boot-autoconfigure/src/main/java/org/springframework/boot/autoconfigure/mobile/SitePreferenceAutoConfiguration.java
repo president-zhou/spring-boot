@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ package org.springframework.boot.autoconfigure.mobile;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -44,29 +43,35 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
  * @since 1.1.0
  */
 @Configuration
-@ConditionalOnClass({ SitePreferenceHandlerInterceptor.class,
-		SitePreferenceHandlerMethodArgumentResolver.class })
+@ConditionalOnClass({ SitePreferenceHandlerInterceptor.class, SitePreferenceHandlerMethodArgumentResolver.class })
 @AutoConfigureAfter(DeviceResolverAutoConfiguration.class)
-@ConditionalOnProperty(prefix = "spring.mobile.sitepreference", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "spring.mobile.sitepreference", name = "enabled", havingValue = "true",
+		matchIfMissing = true)
+@ConditionalOnWebApplication
 public class SitePreferenceAutoConfiguration {
 
+	@Bean
+	@ConditionalOnMissingBean(SitePreferenceHandlerInterceptor.class)
+	public SitePreferenceHandlerInterceptor sitePreferenceHandlerInterceptor() {
+		return new SitePreferenceHandlerInterceptor();
+	}
+
+	@Bean
+	public SitePreferenceHandlerMethodArgumentResolver sitePreferenceHandlerMethodArgumentResolver() {
+		return new SitePreferenceHandlerMethodArgumentResolver();
+	}
+
 	@Configuration
-	@ConditionalOnWebApplication
-	protected static class SitePreferenceMvcConfiguration
-			extends WebMvcConfigurerAdapter {
+	protected static class SitePreferenceMvcConfiguration extends WebMvcConfigurerAdapter {
 
-		@Autowired
-		private SitePreferenceHandlerInterceptor sitePreferenceHandlerInterceptor;
+		private final SitePreferenceHandlerInterceptor sitePreferenceHandlerInterceptor;
 
-		@Bean
-		@ConditionalOnMissingBean(SitePreferenceHandlerInterceptor.class)
-		public SitePreferenceHandlerInterceptor sitePreferenceHandlerInterceptor() {
-			return new SitePreferenceHandlerInterceptor();
-		}
+		private final SitePreferenceHandlerMethodArgumentResolver sitePreferenceHandlerMethodArgumentResolver;
 
-		@Bean
-		public SitePreferenceHandlerMethodArgumentResolver sitePreferenceHandlerMethodArgumentResolver() {
-			return new SitePreferenceHandlerMethodArgumentResolver();
+		protected SitePreferenceMvcConfiguration(SitePreferenceHandlerInterceptor sitePreferenceHandlerInterceptor,
+				org.springframework.mobile.device.site.SitePreferenceHandlerMethodArgumentResolver sitePreferenceHandlerMethodArgumentResolver) {
+			this.sitePreferenceHandlerInterceptor = sitePreferenceHandlerInterceptor;
+			this.sitePreferenceHandlerMethodArgumentResolver = sitePreferenceHandlerMethodArgumentResolver;
 		}
 
 		@Override
@@ -75,9 +80,8 @@ public class SitePreferenceAutoConfiguration {
 		}
 
 		@Override
-		public void addArgumentResolvers(
-				List<HandlerMethodArgumentResolver> argumentResolvers) {
-			argumentResolvers.add(sitePreferenceHandlerMethodArgumentResolver());
+		public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
+			argumentResolvers.add(this.sitePreferenceHandlerMethodArgumentResolver);
 		}
 
 	}

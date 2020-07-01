@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2013 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,10 +33,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link MetricsEndpoint}.
@@ -57,21 +54,20 @@ public class MetricsEndpointTests extends AbstractEndpointTests<MetricsEndpoint>
 
 	@Test
 	public void invoke() throws Exception {
-		assertThat(getEndpointBean().invoke().get("a"), equalTo((Object) 0.5f));
+		assertThat(getEndpointBean().invoke().get("a")).isEqualTo(0.5f);
 	}
 
 	@Test
 	public void ordered() {
 		List<PublicMetrics> publicMetrics = new ArrayList<PublicMetrics>();
-		publicMetrics
-				.add(new TestPublicMetrics(2, this.metric2, this.metric2, this.metric3));
+		publicMetrics.add(new TestPublicMetrics(2, this.metric2, this.metric2, this.metric3));
 		publicMetrics.add(new TestPublicMetrics(1, this.metric1));
 		Map<String, Object> metrics = new MetricsEndpoint(publicMetrics).invoke();
 		Iterator<Entry<String, Object>> iterator = metrics.entrySet().iterator();
-		assertEquals("a", iterator.next().getKey());
-		assertEquals("b", iterator.next().getKey());
-		assertEquals("c", iterator.next().getKey());
-		assertFalse(iterator.hasNext());
+		assertThat(iterator.next().getKey()).isEqualTo("a");
+		assertThat(iterator.next().getKey()).isEqualTo("b");
+		assertThat(iterator.next().getKey()).isEqualTo("c");
+		assertThat(iterator.hasNext()).isFalse();
 	}
 
 	private static class TestPublicMetrics implements PublicMetrics, Ordered {
@@ -114,4 +110,5 @@ public class MetricsEndpointTests extends AbstractEndpointTests<MetricsEndpoint>
 		}
 
 	}
+
 }

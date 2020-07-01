@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -65,8 +65,7 @@ public class LogFile {
 	 * @param path a reference to the logging path to use if {@code file} is not specified
 	 */
 	LogFile(String file, String path) {
-		Assert.isTrue(StringUtils.hasLength(file) || StringUtils.hasLength(path),
-				"File or Path must not be empty");
+		Assert.isTrue(StringUtils.hasLength(file) || StringUtils.hasLength(path), "File or Path must not be empty");
 		this.file = file;
 		this.path = path;
 	}
@@ -83,8 +82,8 @@ public class LogFile {
 	 * @param properties the properties to apply to
 	 */
 	public void applyTo(Properties properties) {
-		put(properties, "LOG_PATH", this.path);
-		put(properties, "LOG_FILE", toString());
+		put(properties, LoggingApplicationListener.LOG_PATH, this.path);
+		put(properties, LoggingApplicationListener.LOG_FILE, toString());
 	}
 
 	private void put(Properties properties, String key, String value) {
@@ -120,4 +119,5 @@ public class LogFile {
 		}
 		return null;
 	}
+
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,9 +21,7 @@ import org.junit.Test;
 import org.springframework.core.env.Environment;
 import org.springframework.mock.env.MockEnvironment;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link CloudPlatform}.
@@ -35,42 +33,39 @@ public class CloudPlatformTests {
 	@Test
 	public void getActiveWhenEnvironmentIsNullShouldReturnNull() throws Exception {
 		CloudPlatform platform = CloudPlatform.getActive(null);
-		assertThat(platform, nullValue());
+		assertThat(platform).isNull();
 	}
 
 	@Test
 	public void getActiveWhenNotInCloudShouldReturnNull() throws Exception {
 		Environment environment = new MockEnvironment();
 		CloudPlatform platform = CloudPlatform.getActive(environment);
-		assertThat(platform, nullValue());
+		assertThat(platform).isNull();
 
 	}
 
 	@Test
-	public void getActiveWhenHasVcapApplicationShouldReturnCloudFoundry()
-			throws Exception {
-		Environment environment = new MockEnvironment().withProperty("VCAP_APPLICATION",
-				"---");
+	public void getActiveWhenHasVcapApplicationShouldReturnCloudFoundry() throws Exception {
+		Environment environment = new MockEnvironment().withProperty("VCAP_APPLICATION", "---");
 		CloudPlatform platform = CloudPlatform.getActive(environment);
-		assertThat(platform, equalTo(CloudPlatform.CLOUD_FOUNDRY));
-		assertThat(platform.isActive(environment), equalTo(true));
+		assertThat(platform).isEqualTo(CloudPlatform.CLOUD_FOUNDRY);
+		assertThat(platform.isActive(environment)).isTrue();
 	}
 
 	@Test
 	public void getActiveWhenHasVcapServicesShouldReturnCloudFoundry() throws Exception {
-		Environment environment = new MockEnvironment().withProperty("VCAP_SERVICES",
-				"---");
+		Environment environment = new MockEnvironment().withProperty("VCAP_SERVICES", "---");
 		CloudPlatform platform = CloudPlatform.getActive(environment);
-		assertThat(platform, equalTo(CloudPlatform.CLOUD_FOUNDRY));
-		assertThat(platform.isActive(environment), equalTo(true));
+		assertThat(platform).isEqualTo(CloudPlatform.CLOUD_FOUNDRY);
+		assertThat(platform.isActive(environment)).isTrue();
 	}
 
 	@Test
 	public void getActiveWhenHasDynoShouldReturnHeroku() throws Exception {
 		Environment environment = new MockEnvironment().withProperty("DYNO", "---");
 		CloudPlatform platform = CloudPlatform.getActive(environment);
-		assertThat(platform, equalTo(CloudPlatform.HEROKU));
-		assertThat(platform.isActive(environment), equalTo(true));
+		assertThat(platform).isEqualTo(CloudPlatform.HEROKU);
+		assertThat(platform.isActive(environment)).isTrue();
 	}
 
 }

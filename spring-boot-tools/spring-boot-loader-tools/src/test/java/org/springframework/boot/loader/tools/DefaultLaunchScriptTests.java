@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,9 +26,7 @@ import org.junit.rules.TemporaryFolder;
 
 import org.springframework.util.FileCopyUtils;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link DefaultLaunchScript}.
@@ -45,12 +43,42 @@ public class DefaultLaunchScriptTests {
 	public void loadsDefaultScript() throws Exception {
 		DefaultLaunchScript script = new DefaultLaunchScript(null, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, containsString("Spring Boot Startup Script"));
+		assertThat(content).contains("Spring Boot Startup Script");
+	}
+
+	@Test
+	public void logFilenameCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("logFilename");
+	}
+
+	@Test
+	public void pidFilenameCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("pidFilename");
 	}
 
 	@Test
 	public void initInfoProvidesCanBeReplaced() throws Exception {
 		assertThatPlaceholderCanBeReplaced("initInfoProvides");
+	}
+
+	@Test
+	public void initInfoRequiredStartCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("initInfoRequiredStart");
+	}
+
+	@Test
+	public void initInfoRequiredStopCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("initInfoRequiredStop");
+	}
+
+	@Test
+	public void initInfoDefaultStartCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("initInfoDefaultStart");
+	}
+
+	@Test
+	public void initInfoDefaultStopCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("initInfoDefaultStop");
 	}
 
 	@Test
@@ -79,17 +107,44 @@ public class DefaultLaunchScriptTests {
 	}
 
 	@Test
+	public void logFolderCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("logFolder");
+	}
+
+	@Test
+	public void pidFolderCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("pidFolder");
+	}
+
+	@Test
+	public void confFolderCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("confFolder");
+	}
+
+	@Test
+	public void stopWaitTimeCanBeReplaced() throws Exception {
+		assertThatPlaceholderCanBeReplaced("stopWaitTime");
+	}
+
+	@Test
 	public void defaultForUseStartStopDaemonIsTrue() throws Exception {
 		DefaultLaunchScript script = new DefaultLaunchScript(null, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, containsString("USE_START_STOP_DAEMON=\"true\""));
+		assertThat(content).contains("USE_START_STOP_DAEMON=\"true\"");
 	}
 
 	@Test
 	public void defaultForModeIsAuto() throws Exception {
 		DefaultLaunchScript script = new DefaultLaunchScript(null, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, containsString("MODE=\"auto\""));
+		assertThat(content).contains("MODE=\"auto\"");
+	}
+
+	@Test
+	public void defaultForStopWaitTimeIs60() throws Exception {
+		DefaultLaunchScript script = new DefaultLaunchScript(null, null);
+		String content = new String(script.toByteArray());
+		assertThat(content).contains("STOP_WAIT_TIME=\"60\"");
 	}
 
 	@Test
@@ -98,27 +153,25 @@ public class DefaultLaunchScriptTests {
 		FileCopyUtils.copy("ABC".getBytes(), file);
 		DefaultLaunchScript script = new DefaultLaunchScript(file, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("ABC"));
+		assertThat(content).isEqualTo("ABC");
 	}
 
 	@Test
 	public void expandVariables() throws Exception {
 		File file = this.temporaryFolder.newFile();
 		FileCopyUtils.copy("h{{a}}ll{{b}}".getBytes(), file);
-		DefaultLaunchScript script = new DefaultLaunchScript(file,
-				createProperties("a:e", "b:o"));
+		DefaultLaunchScript script = new DefaultLaunchScript(file, createProperties("a:e", "b:o"));
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("hello"));
+		assertThat(content).isEqualTo("hello");
 	}
 
 	@Test
 	public void expandVariablesMultiLine() throws Exception {
 		File file = this.temporaryFolder.newFile();
 		FileCopyUtils.copy("h{{a}}l\nl{{b}}".getBytes(), file);
-		DefaultLaunchScript script = new DefaultLaunchScript(file,
-				createProperties("a:e", "b:o"));
+		DefaultLaunchScript script = new DefaultLaunchScript(file, createProperties("a:e", "b:o"));
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("hel\nlo"));
+		assertThat(content).isEqualTo("hel\nlo");
 	}
 
 	@Test
@@ -127,17 +180,16 @@ public class DefaultLaunchScriptTests {
 		FileCopyUtils.copy("h{{a:e}}ll{{b:o}}".getBytes(), file);
 		DefaultLaunchScript script = new DefaultLaunchScript(file, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("hello"));
+		assertThat(content).isEqualTo("hello");
 	}
 
 	@Test
 	public void expandVariablesWithDefaultsOverride() throws Exception {
 		File file = this.temporaryFolder.newFile();
 		FileCopyUtils.copy("h{{a:e}}ll{{b:o}}".getBytes(), file);
-		DefaultLaunchScript script = new DefaultLaunchScript(file,
-				createProperties("a:a"));
+		DefaultLaunchScript script = new DefaultLaunchScript(file, createProperties("a:a"));
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("hallo"));
+		assertThat(content).isEqualTo("hallo");
 	}
 
 	@Test
@@ -146,14 +198,13 @@ public class DefaultLaunchScriptTests {
 		FileCopyUtils.copy("h{{a}}ll{{b}}".getBytes(), file);
 		DefaultLaunchScript script = new DefaultLaunchScript(file, null);
 		String content = new String(script.toByteArray());
-		assertThat(content, equalTo("h{{a}}ll{{b}}"));
+		assertThat(content).isEqualTo("h{{a}}ll{{b}}");
 	}
 
 	private void assertThatPlaceholderCanBeReplaced(String placeholder) throws Exception {
-		DefaultLaunchScript script = new DefaultLaunchScript(null,
-				createProperties(placeholder + ":__test__"));
+		DefaultLaunchScript script = new DefaultLaunchScript(null, createProperties(placeholder + ":__test__"));
 		String content = new String(script.toByteArray());
-		assertThat(content, containsString("__test__"));
+		assertThat(content).contains("__test__");
 	}
 
 	private Map<?, ?> createProperties(String... pairs) {

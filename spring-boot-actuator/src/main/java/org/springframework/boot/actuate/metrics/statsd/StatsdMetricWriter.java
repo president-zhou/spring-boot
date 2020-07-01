@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,7 @@ package org.springframework.boot.actuate.metrics.statsd;
 import java.io.Closeable;
 
 import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientErrorHandler;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -26,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.actuate.metrics.Metric;
 import org.springframework.boot.actuate.metrics.writer.Delta;
 import org.springframework.boot.actuate.metrics.writer.MetricWriter;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
@@ -37,13 +39,14 @@ import org.springframework.util.StringUtils;
  * a gauge.
  *
  * @author Dave Syer
+ * @author Odín del Río
  * @since 1.3.0
  */
 public class StatsdMetricWriter implements MetricWriter, Closeable {
 
 	private static final Log logger = LogFactory.getLog(StatsdMetricWriter.class);
 
-	private final NonBlockingStatsDClient client;
+	private final StatsDClient client;
 
 	/**
 	 * Create a new writer instance with the given parameters.
@@ -61,24 +64,36 @@ public class StatsdMetricWriter implements MetricWriter, Closeable {
 	 * @param port the port for the statsd server
 	 */
 	public StatsdMetricWriter(String prefix, String host, int port) {
-		prefix = StringUtils.hasText(prefix) ? prefix : null;
-		while (prefix != null && prefix.endsWith(".")) {
-			prefix = prefix.substring(0, prefix.length() - 1);
+		this(new NonBlockingStatsDClient(trimPrefix(prefix), host, port, new LoggingStatsdErrorHandler()));
+	}
+
+	/**
+	 * Create a new writer with the given client.
+	 * @param client the StatsD client to write metrics with
+	 */
+	public StatsdMetricWriter(StatsDClient client) {
+		Assert.notNull(client, "client must not be null");
+		this.client = client;
+	}
+
+	private static String trimPrefix(String prefix) {
+		String trimmedPrefix = (StringUtils.hasText(prefix) ? prefix : null);
+		while (trimmedPrefix != null && trimmedPrefix.endsWith(".")) {
+			trimmedPrefix = trimmedPrefix.substring(0, trimmedPrefix.length() - 1);
 		}
-		this.client = new NonBlockingStatsDClient(prefix, host, port,
-				new LoggingStatsdErrorHandler());
+
+		return trimmedPrefix;
 	}
 
 	@Override
 	public void increment(Delta<?> delta) {
-		this.client.count(delta.getName(), delta.getValue().longValue());
+		this.client.count(sanitizeMetricName(delta.getName()), delta.getValue().longValue());
 	}
 
 	@Override
 	public void set(Metric<?> value) {
-		String name = value.getName();
-		if (name.contains("timer.") && !name.contains("gauge.")
-				&& !name.contains("counter.")) {
+		String name = sanitizeMetricName(value.getName());
+		if (name.contains("timer.") && !name.contains("gauge.") && !name.contains("counter.")) {
 			this.client.recordExecutionTime(name, value.getValue().longValue());
 		}
 		else {
@@ -101,13 +116,20 @@ public class StatsdMetricWriter implements MetricWriter, Closeable {
 		this.client.stop();
 	}
 
-	private static final class LoggingStatsdErrorHandler
-			implements StatsDClientErrorHandler {
+	/**
+	 * Sanitize the metric name if necessary.
+	 * @param name the metric name
+	 * @return the sanitized metric name
+	 */
+	private String sanitizeMetricName(String name) {
+		return name.replace(":", "-");
+	}
+
+	private static final class LoggingStatsdErrorHandler implements StatsDClientErrorHandler {
 
 		@Override
 		public void handle(Exception e) {
-			logger.debug("Failed to write metric. Exception: " + e.getClass()
-					+ ", message: " + e.getMessage());
+			logger.debug("Failed to write metric. Exception: " + e.getClass() + ", message: " + e.getMessage());
 		}
 
 	}

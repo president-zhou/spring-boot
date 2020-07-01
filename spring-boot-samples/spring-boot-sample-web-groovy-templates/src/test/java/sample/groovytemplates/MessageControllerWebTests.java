@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,10 +25,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -46,9 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author Biju Kunjummen
  * @author Doo-Hwan, Kwak
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@WebAppConfiguration
-@SpringApplicationConfiguration(SampleGroovyTemplateApplication.class)
+@RunWith(SpringRunner.class)
+@SpringBootTest
 @DirtiesContext
 public class MessageControllerWebTests {
 
@@ -70,27 +68,22 @@ public class MessageControllerWebTests {
 
 	@Test
 	public void testCreate() throws Exception {
-		this.mockMvc.perform(post("/").param("text", "FOO text").param("summary", "FOO"))
-				.andExpect(status().isFound())
+		this.mockMvc.perform(post("/").param("text", "FOO text").param("summary", "FOO")).andExpect(status().isFound())
 				.andExpect(header().string("location", RegexMatcher.matches("/[0-9]+")));
 	}
 
 	@Test
 	public void testCreateValidation() throws Exception {
-		this.mockMvc.perform(post("/").param("text", "").param("summary", ""))
-				.andExpect(status().isOk())
+		this.mockMvc.perform(post("/").param("text", "").param("summary", "")).andExpect(status().isOk())
 				.andExpect(content().string(containsString("is required")));
 	}
 
 	private static class RegexMatcher extends TypeSafeMatcher<String> {
+
 		private final String regex;
 
-		public RegexMatcher(String regex) {
+		RegexMatcher(String regex) {
 			this.regex = regex;
-		}
-
-		public static org.hamcrest.Matcher<java.lang.String> matches(String regex) {
-			return new RegexMatcher(regex);
 		}
 
 		@Override
@@ -105,8 +98,13 @@ public class MessageControllerWebTests {
 
 		@Override
 		public void describeTo(Description description) {
-			description.appendText("a string that matches regex: ")
-					.appendText(this.regex);
+			description.appendText("a string that matches regex: ").appendText(this.regex);
 		}
+
+		public static org.hamcrest.Matcher<java.lang.String> matches(String regex) {
+			return new RegexMatcher(regex);
+		}
+
 	}
+
 }

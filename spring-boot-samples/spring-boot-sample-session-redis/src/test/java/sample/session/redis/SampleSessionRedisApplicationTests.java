@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ import java.net.URI;
 import org.junit.Test;
 
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.context.web.ServerPortInfoApplicationContextInitializer;
+import org.springframework.boot.context.embedded.ServerPortInfoApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpHeaders;
@@ -30,10 +30,7 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link SampleSessionRedisApplication}.
@@ -49,16 +46,15 @@ public class SampleSessionRedisApplicationTests {
 
 		try {
 			ConfigurableApplicationContext context = new SpringApplicationBuilder()
-					.sources(SampleSessionRedisApplication.class)
-					.properties("server.port:0")
-					.initializers(new ServerPortInfoApplicationContextInitializer())
-					.run();
+					.sources(SampleSessionRedisApplication.class).properties("server.port:0")
+					.initializers(new ServerPortInfoApplicationContextInitializer()).run();
 			port = context.getEnvironment().getProperty("local.server.port");
 		}
 		catch (RuntimeException ex) {
 			if (!redisServerRunning(ex)) {
 				return;
 			}
+			throw ex;
 		}
 
 		URI uri = URI.create("http://localhost:" + port + "/");
@@ -69,16 +65,15 @@ public class SampleSessionRedisApplicationTests {
 		HttpHeaders requestHeaders = new HttpHeaders();
 		requestHeaders.set("Cookie", response.getHeaders().getFirst("Set-Cookie"));
 
-		RequestEntity<Void> request = new RequestEntity<Void>(requestHeaders,
-				HttpMethod.GET, uri);
+		RequestEntity<Void> request = new RequestEntity<Void>(requestHeaders, HttpMethod.GET, uri);
 
 		String uuid2 = restTemplate.exchange(request, String.class).getBody();
-		assertThat(uuid1, is(equalTo(uuid2)));
+		assertThat(uuid1).isEqualTo(uuid2);
 
 		Thread.sleep(5000);
 
 		String uuid3 = restTemplate.exchange(request, String.class).getBody();
-		assertThat(uuid2, is(not(equalTo(uuid3))));
+		assertThat(uuid2).isNotEqualTo(uuid3);
 	}
 
 	private boolean redisServerRunning(Throwable ex) {

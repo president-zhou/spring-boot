@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,9 +26,7 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.mock.web.MockHttpServletRequest;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -70,16 +68,15 @@ public class UrlHandlerMapperTests {
 		UrlHandlerMapper mapper = new UrlHandlerMapper("/tunnel", this.handler);
 		HttpServletRequest servletRequest = new MockHttpServletRequest("GET", "/tunnel");
 		ServerHttpRequest request = new ServletServerHttpRequest(servletRequest);
-		assertThat(mapper.getHandler(request), equalTo(this.handler));
+		assertThat(mapper.getHandler(request)).isEqualTo(this.handler);
 	}
 
 	@Test
 	public void ignoresDifferentUrl() throws Exception {
 		UrlHandlerMapper mapper = new UrlHandlerMapper("/tunnel", this.handler);
-		HttpServletRequest servletRequest = new MockHttpServletRequest("GET",
-				"/tunnel/other");
+		HttpServletRequest servletRequest = new MockHttpServletRequest("GET", "/tunnel/other");
 		ServerHttpRequest request = new ServletServerHttpRequest(servletRequest);
-		assertThat(mapper.getHandler(request), nullValue());
+		assertThat(mapper.getHandler(request)).isNull();
 	}
 
 }

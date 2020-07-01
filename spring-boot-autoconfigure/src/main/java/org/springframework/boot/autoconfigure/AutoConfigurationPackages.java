@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.boot.autoconfigure;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +32,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.boot.context.annotation.DeterminableImports;
 import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -45,6 +47,7 @@ import org.springframework.util.StringUtils;
  * @author Phillip Webb
  * @author Dave Syer
  * @author Oliver Gierke
+ * @since 1.0.0
  */
 public abstract class AutoConfigurationPackages {
 
@@ -69,14 +72,11 @@ public abstract class AutoConfigurationPackages {
 	 * @throws IllegalStateException if auto-configuration is not enabled
 	 */
 	public static List<String> get(BeanFactory beanFactory) {
-		// Currently we only store a single base package, but we return a list to
-		// allow this to change in the future if needed
 		try {
 			return beanFactory.getBean(BEAN, BasePackages.class).get();
 		}
 		catch (NoSuchBeanDefinitionException ex) {
-			throw new IllegalStateException(
-					"Unable to retrieve @EnableAutoConfiguration base packages");
+			throw new IllegalStateException("Unable to retrieve @EnableAutoConfiguration base packages");
 		}
 	}
 
@@ -94,25 +94,20 @@ public abstract class AutoConfigurationPackages {
 	public static void register(BeanDefinitionRegistry registry, String... packageNames) {
 		if (registry.containsBeanDefinition(BEAN)) {
 			BeanDefinition beanDefinition = registry.getBeanDefinition(BEAN);
-			ConstructorArgumentValues constructorArguments = beanDefinition
-					.getConstructorArgumentValues();
-			constructorArguments.addIndexedArgumentValue(0,
-					addBasePackages(constructorArguments, packageNames));
+			ConstructorArgumentValues constructorArguments = beanDefinition.getConstructorArgumentValues();
+			constructorArguments.addIndexedArgumentValue(0, addBasePackages(constructorArguments, packageNames));
 		}
 		else {
 			GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
 			beanDefinition.setBeanClass(BasePackages.class);
-			beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0,
-					packageNames);
+			beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, packageNames);
 			beanDefinition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
 			registry.registerBeanDefinition(BEAN, beanDefinition);
 		}
 	}
 
-	private static String[] addBasePackages(
-			ConstructorArgumentValues constructorArguments, String[] packageNames) {
-		String[] existing = (String[]) constructorArguments
-				.getIndexedArgumentValue(0, String[].class).getValue();
+	private static String[] addBasePackages(ConstructorArgumentValues constructorArguments, String[] packageNames) {
+		String[] existing = (String[]) constructorArguments.getIndexedArgumentValue(0, String[].class).getValue();
 		Set<String> merged = new LinkedHashSet<String>();
 		merged.addAll(Arrays.asList(existing));
 		merged.addAll(Arrays.asList(packageNames));
@@ -124,12 +119,51 @@ public abstract class AutoConfigurationPackages {
 	 * configuration.
 	 */
 	@Order(Ordered.HIGHEST_PRECEDENCE)
-	static class Registrar implements ImportBeanDefinitionRegistrar {
+	static class Registrar implements ImportBeanDefinitionRegistrar, DeterminableImports {
 
 		@Override
-		public void registerBeanDefinitions(AnnotationMetadata metadata,
-				BeanDefinitionRegistry registry) {
-			register(registry, ClassUtils.getPackageName(metadata.getClassName()));
+		public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
+			register(registry, new PackageImport(metadata).getPackageName());
+		}
+
+		@Override
+		public Set<Object> determineImports(AnnotationMetadata metadata) {
+			return Collections.<Object>singleton(new PackageImport(metadata));
+		}
+
+	}
+
+	/**
+	 * Wrapper for a package import.
+	 */
+	private static final class PackageImport {
+
+		private final String packageName;
+
+		PackageImport(AnnotationMetadata metadata) {
+			this.packageName = ClassUtils.getPackageName(metadata.getClassName());
+		}
+
+		public String getPackageName() {
+			return this.packageName;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null || getClass() != obj.getClass()) {
+				return false;
+			}
+			return this.packageName.equals(((PackageImport) obj).packageName);
+		}
+
+		@Override
+		public int hashCode() {
+			return this.packageName.hashCode();
+		}
+
+		@Override
+		public String toString() {
+			return "Package Import " + this.packageName;
 		}
 
 	}
@@ -164,12 +198,9 @@ public abstract class AutoConfigurationPackages {
 				}
 				else {
 					if (logger.isDebugEnabled()) {
-						String packageNames = StringUtils
-								.collectionToCommaDelimitedString(this.packages);
-						logger.debug("@EnableAutoConfiguration was declared on a class "
-								+ "in the package '" + packageNames
-								+ "'. Automatic @Repository and @Entity scanning is "
-								+ "enabled.");
+						String packageNames = StringUtils.collectionToCommaDelimitedString(this.packages);
+						logger.debug("@EnableAutoConfiguration was declared on a class " + "in the package '"
+								+ packageNames + "'. Automatic @Repository and @Entity scanning is " + "enabled.");
 					}
 				}
 				this.loggedBasePackageInfo = true;

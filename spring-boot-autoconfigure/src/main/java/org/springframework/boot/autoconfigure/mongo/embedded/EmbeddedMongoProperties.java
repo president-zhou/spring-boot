@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 
 package org.springframework.boot.autoconfigure.mongo.embedded;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,6 +28,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Configuration properties for Embedded Mongo.
  *
  * @author Andy Wilkinson
+ * @author Yogesh Lonkar
  * @since 1.3.0
  */
 @ConfigurationProperties(prefix = "spring.mongodb.embedded")
@@ -36,13 +37,14 @@ public class EmbeddedMongoProperties {
 	/**
 	 * Version of Mongo to use.
 	 */
-	private String version = "2.6.10";
+	private String version = "3.2.2";
+
+	private final Storage storage = new Storage();
 
 	/**
 	 * Comma-separated list of features to enable.
 	 */
-	private Set<Feature> features = new HashSet<Feature>(
-			Arrays.asList(Feature.SYNC_DELAY));
+	private Set<Feature> features = new HashSet<Feature>(Collections.singletonList(Feature.SYNC_DELAY));
 
 	public String getVersion() {
 		return this.version;
@@ -58,6 +60,53 @@ public class EmbeddedMongoProperties {
 
 	public void setFeatures(Set<Feature> features) {
 		this.features = features;
+	}
+
+	public Storage getStorage() {
+		return this.storage;
+	}
+
+	public static class Storage {
+
+		/**
+		 * Maximum size of the oplog in megabytes.
+		 */
+		private Integer oplogSize;
+
+		/**
+		 * Name of the replica set.
+		 */
+		private String replSetName;
+
+		/**
+		 * Directory used for data storage.
+		 */
+		private String databaseDir;
+
+		public Integer getOplogSize() {
+			return this.oplogSize;
+		}
+
+		public void setOplogSize(Integer oplogSize) {
+			this.oplogSize = oplogSize;
+		}
+
+		public String getReplSetName() {
+			return this.replSetName;
+		}
+
+		public void setReplSetName(String replSetName) {
+			this.replSetName = replSetName;
+		}
+
+		public String getDatabaseDir() {
+			return this.databaseDir;
+		}
+
+		public void setDatabaseDir(String databaseDir) {
+			this.databaseDir = databaseDir;
+		}
+
 	}
 
 }

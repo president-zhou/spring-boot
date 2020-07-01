@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,8 +24,8 @@ import com.sun.jersey.spi.container.servlet.ServletContainer;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.context.embedded.FilterRegistrationBean;
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
@@ -48,8 +48,7 @@ public class SampleJersey1Application {
 	public FilterRegistrationBean jersey() {
 		FilterRegistrationBean bean = new FilterRegistrationBean();
 		bean.setFilter(new ServletContainer());
-		bean.addInitParameter("com.sun.jersey.config.property.packages",
-				"com.sun.jersey;sample.jersey1");
+		bean.addInitParameter("com.sun.jersey.config.property.packages", "com.sun.jersey;sample.jersey1");
 		return bean;
 	}
 

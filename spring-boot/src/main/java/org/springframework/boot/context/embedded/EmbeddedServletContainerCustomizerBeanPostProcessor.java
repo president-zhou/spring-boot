@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,34 +22,37 @@ import java.util.Collections;
 import java.util.List;
 
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.util.Assert;
 
 /**
- * {@link BeanPostProcessor} that apply all {@link EmbeddedServletContainerCustomizer}s
+ * {@link BeanPostProcessor} that applies all {@link EmbeddedServletContainerCustomizer}s
  * from the bean factory to {@link ConfigurableEmbeddedServletContainer} beans.
  *
  * @author Dave Syer
  * @author Phillip Webb
+ * @author Stephane Nicoll
+ * @since 1.0.0
  */
-public class EmbeddedServletContainerCustomizerBeanPostProcessor
-		implements BeanPostProcessor, ApplicationContextAware {
+public class EmbeddedServletContainerCustomizerBeanPostProcessor implements BeanPostProcessor, BeanFactoryAware {
 
-	private ApplicationContext applicationContext;
+	private ListableBeanFactory beanFactory;
 
 	private List<EmbeddedServletContainerCustomizer> customizers;
 
 	@Override
-	public void setApplicationContext(ApplicationContext applicationContext)
-			throws BeansException {
-		this.applicationContext = applicationContext;
+	public void setBeanFactory(BeanFactory beanFactory) {
+		Assert.isInstanceOf(ListableBeanFactory.class, beanFactory,
+				"EmbeddedServletContainerCustomizerBeanPostProcessor can only be used " + "with a ListableBeanFactory");
+		this.beanFactory = (ListableBeanFactory) beanFactory;
 	}
 
 	@Override
-	public Object postProcessBeforeInitialization(Object bean, String beanName)
-			throws BeansException {
+	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 		if (bean instanceof ConfigurableEmbeddedServletContainer) {
 			postProcessBeforeInitialization((ConfigurableEmbeddedServletContainer) bean);
 		}
@@ -57,13 +60,11 @@ public class EmbeddedServletContainerCustomizerBeanPostProcessor
 	}
 
 	@Override
-	public Object postProcessAfterInitialization(Object bean, String beanName)
-			throws BeansException {
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 		return bean;
 	}
 
-	private void postProcessBeforeInitialization(
-			ConfigurableEmbeddedServletContainer bean) {
+	private void postProcessBeforeInitialization(ConfigurableEmbeddedServletContainer bean) {
 		for (EmbeddedServletContainerCustomizer customizer : getCustomizers()) {
 			customizer.customize(bean);
 		}
@@ -73,10 +74,7 @@ public class EmbeddedServletContainerCustomizerBeanPostProcessor
 		if (this.customizers == null) {
 			// Look up does not include the parent context
 			this.customizers = new ArrayList<EmbeddedServletContainerCustomizer>(
-					this.applicationContext
-							.getBeansOfType(EmbeddedServletContainerCustomizer.class,
-									false, false)
-							.values());
+					this.beanFactory.getBeansOfType(EmbeddedServletContainerCustomizer.class, false, false).values());
 			Collections.sort(this.customizers, AnnotationAwareOrderComparator.INSTANCE);
 			this.customizers = Collections.unmodifiableList(this.customizers);
 		}

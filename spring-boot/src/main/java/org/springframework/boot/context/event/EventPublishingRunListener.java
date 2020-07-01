@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,9 @@
 
 package org.springframework.boot.context.event;
 
-import org.springframework.beans.factory.BeanFactoryAware;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringApplicationRunListener;
 import org.springframework.context.ApplicationContextAware;
@@ -27,26 +29,32 @@ import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.util.ErrorHandler;
 
 /**
  * {@link SpringApplicationRunListener} to publish {@link SpringApplicationEvent}s.
+ * <p>
+ * Uses an internal {@link ApplicationEventMulticaster} for the events that are fired
+ * before the context is actually refreshed.
  *
  * @author Phillip Webb
+ * @author Stephane Nicoll
+ * @since 1.0.0
  */
 public class EventPublishingRunListener implements SpringApplicationRunListener, Ordered {
 
-	private final ApplicationEventMulticaster multicaster;
+	private final SpringApplication application;
 
-	private SpringApplication application;
+	private final String[] args;
 
-	private String[] args;
+	private final SimpleApplicationEventMulticaster initialMulticaster;
 
 	public EventPublishingRunListener(SpringApplication application, String[] args) {
 		this.application = application;
 		this.args = args;
-		this.multicaster = new SimpleApplicationEventMulticaster();
+		this.initialMulticaster = new SimpleApplicationEventMulticaster();
 		for (ApplicationListener<?> listener : application.getListeners()) {
-			this.multicaster.addApplicationListener(listener);
+			this.initialMulticaster.addApplicationListener(listener);
 		}
 	}
 
@@ -56,30 +64,20 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 	}
 
 	@Override
-	public void started() {
-		publishEvent(new ApplicationStartedEvent(this.application, this.args));
+	@SuppressWarnings("deprecation")
+	public void starting() {
+		this.initialMulticaster.multicastEvent(new ApplicationStartedEvent(this.application, this.args));
 	}
 
 	@Override
 	public void environmentPrepared(ConfigurableEnvironment environment) {
-		publishEvent(new ApplicationEnvironmentPreparedEvent(this.application, this.args,
-				environment));
+		this.initialMulticaster
+				.multicastEvent(new ApplicationEnvironmentPreparedEvent(this.application, this.args, environment));
 	}
 
 	@Override
 	public void contextPrepared(ConfigurableApplicationContext context) {
-		registerApplicationEventMulticaster(context);
-	}
 
-	private void registerApplicationEventMulticaster(
-			ConfigurableApplicationContext context) {
-		context.getBeanFactory().registerSingleton(
-				AbstractApplicationContext.APPLICATION_EVENT_MULTICASTER_BEAN_NAME,
-				this.multicaster);
-		if (this.multicaster instanceof BeanFactoryAware) {
-			((BeanFactoryAware) this.multicaster)
-					.setBeanFactory(context.getBeanFactory());
-		}
 	}
 
 	@Override
@@ -90,25 +88,49 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 			}
 			context.addApplicationListener(listener);
 		}
-		publishEvent(new ApplicationPreparedEvent(this.application, this.args, context));
+		this.initialMulticaster.multicastEvent(new ApplicationPreparedEvent(this.application, this.args, context));
 	}
 
 	@Override
 	public void finished(ConfigurableApplicationContext context, Throwable exception) {
-		publishEvent(getFinishedEvent(context, exception));
+		SpringApplicationEvent event = getFinishedEvent(context, exception);
+		if (context != null && context.isActive()) {
+			// Listeners have been registered to the application context so we should
+			// use it at this point if we can
+			context.publishEvent(event);
+		}
+		else {
+			// An inactive context may not have a multicaster so we use our multicaster to
+			// call all of the context's listeners instead
+			if (context instanceof AbstractApplicationContext) {
+				for (ApplicationListener<?> listener : ((AbstractApplicationContext) context)
+						.getApplicationListeners()) {
+					this.initialMulticaster.addApplicationListener(listener);
+				}
+			}
+			if (event instanceof ApplicationFailedEvent) {
+				this.initialMulticaster.setErrorHandler(new LoggingErrorHandler());
+			}
+			this.initialMulticaster.multicastEvent(event);
+		}
 	}
 
-	private SpringApplicationEvent getFinishedEvent(
-			ConfigurableApplicationContext context, Throwable exception) {
+	private SpringApplicationEvent getFinishedEvent(ConfigurableApplicationContext context, Throwable exception) {
 		if (exception != null) {
-			return new ApplicationFailedEvent(this.application, this.args, context,
-					exception);
+			return new ApplicationFailedEvent(this.application, this.args, context, exception);
 		}
 		return new ApplicationReadyEvent(this.application, this.args, context);
 	}
 
-	private void publishEvent(SpringApplicationEvent event) {
-		this.multicaster.multicastEvent(event);
+	private static class LoggingErrorHandler implements ErrorHandler {
+
+		private static Log logger = LogFactory.getLog(EventPublishingRunListener.class);
+
+		@Override
+		public void handleError(Throwable throwable) {
+			logger.warn("Error calling ApplicationEventListener", throwable);
+		}
+
 	}
 
 }

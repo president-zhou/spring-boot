@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,8 +23,18 @@ import org.springframework.core.env.Environment;
 /**
  * Allows for customization of the application's {@link Environment} prior to the
  * application context being refreshed.
+ * <p>
+ * EnvironmentPostProcessor implementations have to be registered in
+ * {@code META-INF/spring.factories}, using the fully qualified name of this class as the
+ * key.
+ * <p>
+ * {@code EnvironmentPostProcessor} processors are encouraged to detect whether Spring's
+ * {@link org.springframework.core.Ordered Ordered} interface has been implemented or if
+ * the {@link org.springframework.core.annotation.Order @Order} annotation is present and
+ * to sort instances accordingly if so prior to invocation.
  *
  * @author Andy Wilkinson
+ * @author Stephane Nicoll
  * @since 1.3.0
  */
 public interface EnvironmentPostProcessor {
@@ -34,7 +44,6 @@ public interface EnvironmentPostProcessor {
 	 * @param environment the environment to post-process
 	 * @param application the application to which the environment belongs
 	 */
-	void postProcessEnvironment(ConfigurableEnvironment environment,
-			SpringApplication application);
+	void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application);
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,8 +28,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.autoconfigure.security.SecurityAuthorizeMode;
 import org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
-import org.springframework.boot.context.embedded.ServletRegistrationBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -41,6 +41,8 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
  * {@link EnableAutoConfiguration Auto-configuration} for H2's web console.
  *
  * @author Andy Wilkinson
+ * @author Marten Deinum
+ * @author Stephane Nicoll
  * @since 1.3.0
  */
 @Configuration
@@ -51,14 +53,25 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 @AutoConfigureAfter(SecurityAutoConfiguration.class)
 public class H2ConsoleAutoConfiguration {
 
-	@Autowired
-	private H2ConsoleProperties properties;
+	private final H2ConsoleProperties properties;
+
+	public H2ConsoleAutoConfiguration(H2ConsoleProperties properties) {
+		this.properties = properties;
+	}
 
 	@Bean
 	public ServletRegistrationBean h2Console() {
 		String path = this.properties.getPath();
 		String urlMapping = (path.endsWith("/") ? path + "*" : path + "/*");
-		return new ServletRegistrationBean(new WebServlet(), urlMapping);
+		ServletRegistrationBean registration = new ServletRegistrationBean(new WebServlet(), urlMapping);
+		H2ConsoleProperties.Settings settings = this.properties.getSettings();
+		if (settings.isTrace()) {
+			registration.addInitParameter("trace", "");
+		}
+		if (settings.isWebAllowOthers()) {
+			registration.addInitParameter("webAllowOthers", "");
+		}
+		return registration;
 	}
 
 	@Configuration
@@ -73,8 +86,7 @@ public class H2ConsoleAutoConfiguration {
 		}
 
 		@Order(SecurityProperties.BASIC_AUTH_ORDER - 10)
-		private static class H2ConsoleSecurityConfigurer
-				extends WebSecurityConfigurerAdapter {
+		private static class H2ConsoleSecurityConfigurer extends WebSecurityConfigurerAdapter {
 
 			@Autowired
 			private H2ConsoleProperties console;

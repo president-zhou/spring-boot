@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,15 +33,13 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
 
-import org.springframework.boot.configurationprocessor.TestCompiler.TestCompilationTask;
 import org.springframework.boot.configurationprocessor.metadata.ConfigurationMetadata;
 import org.springframework.boot.configurationsample.ConfigurationProperties;
 import org.springframework.boot.configurationsample.NestedConfigurationProperty;
+import org.springframework.boot.junit.compiler.TestCompiler;
+import org.springframework.boot.junit.compiler.TestCompiler.TestCompilationTask;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.util.FileSystemUtils;
-
-import static org.springframework.boot.configurationprocessor.TestCompiler.ORIGINAL_SOURCE_FOLDER;
-import static org.springframework.boot.configurationprocessor.TestCompiler.sourcePathFor;
 
 /**
  * A TestProject contains a copy of a subset of test sample code.
@@ -62,12 +60,12 @@ public class TestProject {
 	 * incremental builds.
 	 */
 	private File sourceFolder;
+
 	private TestCompiler compiler;
 
 	private Set<File> sourceFiles = new LinkedHashSet<File>();
 
-	public TestProject(TemporaryFolder tempFolder, Class<?>... classes)
-			throws IOException {
+	public TestProject(TemporaryFolder tempFolder, Class<?>... classes) throws IOException {
 		this.sourceFolder = tempFolder.newFolder();
 		this.compiler = new TestCompiler(tempFolder) {
 			@Override
@@ -95,7 +93,7 @@ public class TestProject {
 	}
 
 	public File getSourceFile(Class<?> type) {
-		return new File(this.sourceFolder, sourcePathFor(type));
+		return new File(this.sourceFolder, TestCompiler.sourcePathFor(type));
 	}
 
 	public ConfigurationMetadata fullBuild() {
@@ -136,15 +134,12 @@ public class TestProject {
 	 * @param snippetStream the snippet stream
 	 * @throws Exception if the source cannot be added
 	 */
-	public void addSourceCode(Class<?> target, InputStream snippetStream)
-			throws Exception {
+	public void addSourceCode(Class<?> target, InputStream snippetStream) throws Exception {
 		File targetFile = getSourceFile(target);
 		String contents = getContents(targetFile);
 		int insertAt = contents.lastIndexOf('}');
-		String additionalSource = FileCopyUtils
-				.copyToString(new InputStreamReader(snippetStream));
-		contents = contents.substring(0, insertAt) + additionalSource
-				+ contents.substring(insertAt);
+		String additionalSource = FileCopyUtils.copyToString(new InputStreamReader(snippetStream));
+		contents = contents.substring(0, insertAt) + additionalSource + contents.substring(insertAt);
 		putContents(targetFile, contents);
 	}
 
@@ -191,7 +186,7 @@ public class TestProject {
 	 * code.
 	 */
 	private File getOriginalSourceFile(Class<?> type) {
-		return new File(ORIGINAL_SOURCE_FOLDER, sourcePathFor(type));
+		return new File(TestCompiler.SOURCE_FOLDER, TestCompiler.sourcePathFor(type));
 	}
 
 	private static void putContents(File targetFile, String contents)
@@ -202,4 +197,5 @@ public class TestProject {
 	private static String getContents(File file) throws Exception {
 		return FileCopyUtils.copyToString(new FileReader(file));
 	}
+
 }

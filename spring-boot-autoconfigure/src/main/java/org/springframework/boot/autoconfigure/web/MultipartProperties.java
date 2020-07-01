@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,40 +18,38 @@ package org.springframework.boot.autoconfigure.web;
 
 import javax.servlet.MultipartConfigElement;
 
-import org.springframework.boot.context.embedded.MultipartConfigFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.web.servlet.MultipartConfigFactory;
 import org.springframework.util.StringUtils;
 
 /**
  * Properties to be used in configuring a {@link MultipartConfigElement}.
  * <ul>
- * <li>{@literal multipart.location} specifies the directory where files will be stored.
- * The default is "". A common value is to use the system's temporary directory, which can
- * be obtained.</li>
- * <li>{@literal multipart.maxFileSize} specifies the maximum size permitted for uploaded
- * files. The default is 1Mb.</li>
- * <li>{@literal multipart.maxRequestSize} specifies the maximum size allowed for
- * {@literal multipart/form-data} requests. The default is 10Mb</li>
- * <li>{@literal multipart.fileSizeThreshold} specifies the size threshold after which
- * files will be written to disk. Default is 0, which means that the file will be written
- * to disk immediately.</li>
+ * <li>{@link #getLocation() location} specifies the directory where uploaded files will
+ * be stored. When not specified, a temporary directory will be used.</li>
+ * <li>{@link #getMaxFileSize() max-file-size} specifies the maximum size permitted for
+ * uploaded files. The default is 1MB.</li>
+ * <li>{@link #getMaxRequestSize() max-request-size} specifies the maximum size allowed
+ * for {@literal multipart/form-data} requests. The default is 10MB.</li>
+ * <li>{@link #getFileSizeThreshold() file-size-threshold} specifies the size threshold
+ * after which files will be written to disk. The default is 0.</li>
  * </ul>
  * <p>
- * These properties are ultimately passed through
- * {@link org.springframework.boot.context.embedded.MultipartConfigFactory} which means
- * you may specify the values using {@literal long} values or using more readable
- * {@literal String} variants that accept {@literal Kb} or {@literal Mb} suffixes.
+ * These properties are ultimately passed to {@link MultipartConfigFactory} which means
+ * you may specify numeric values using {@literal long} values or using more readable
+ * {@literal String} variants that accept {@literal KB} or {@literal MB} suffixes.
  *
  * @author Josh Long
+ * @author Toshiaki Maki
  * @since 1.1.0
  */
-@ConfigurationProperties(prefix = "multipart", ignoreUnknownFields = false)
+@ConfigurationProperties(prefix = "spring.http.multipart", ignoreUnknownFields = false)
 public class MultipartProperties {
 
 	/**
-	 * Enable multipart upload handling.
+	 * Enable support of multipart uploads.
 	 */
-	private boolean enabled;
+	private boolean enabled = true;
 
 	/**
 	 * Intermediate location of uploaded files.
@@ -59,22 +57,28 @@ public class MultipartProperties {
 	private String location;
 
 	/**
-	 * Max file size. Values can use the suffixed "MB" or "KB" to indicate a Megabyte or
-	 * Kilobyte size.
+	 * Max file size. Values can use the suffixes "MB" or "KB" to indicate megabytes or
+	 * kilobytes respectively.
 	 */
-	private String maxFileSize = "1Mb";
+	private String maxFileSize = "1MB";
 
 	/**
-	 * Max request size. Values can use the suffixed "MB" or "KB" to indicate a Megabyte
-	 * or Kilobyte size.
+	 * Max request size. Values can use the suffixes "MB" or "KB" to indicate megabytes or
+	 * kilobytes respectively.
 	 */
-	private String maxRequestSize = "10Mb";
+	private String maxRequestSize = "10MB";
 
 	/**
-	 * Threshold after which files will be written to disk. Values can use the suffixed
-	 * "MB" or "KB" to indicate a Megabyte or Kilobyte size.
+	 * Threshold after which files will be written to disk. Values can use the suffixes
+	 * "MB" or "KB" to indicate megabytes or kilobytes respectively.
 	 */
 	private String fileSizeThreshold = "0";
+
+	/**
+	 * Whether to resolve the multipart request lazily at the time of file or parameter
+	 * access.
+	 */
+	private boolean resolveLazily = false;
 
 	public boolean getEnabled() {
 		return this.enabled;
@@ -114,6 +118,14 @@ public class MultipartProperties {
 
 	public void setFileSizeThreshold(String fileSizeThreshold) {
 		this.fileSizeThreshold = fileSizeThreshold;
+	}
+
+	public boolean isResolveLazily() {
+		return this.resolveLazily;
+	}
+
+	public void setResolveLazily(boolean resolveLazily) {
+		this.resolveLazily = resolveLazily;
 	}
 
 	/**

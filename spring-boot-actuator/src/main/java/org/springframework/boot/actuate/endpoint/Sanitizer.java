@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,6 +27,7 @@ import org.springframework.util.Assert;
  * @author Toshiaki Maki
  * @author Phillip Webb
  * @author Nicolas Lejeune
+ * @author Stephane Nicoll
  */
 class Sanitizer {
 
@@ -35,8 +36,11 @@ class Sanitizer {
 	private Pattern[] keysToSanitize;
 
 	Sanitizer() {
-		setKeysToSanitize("password", "secret", "key", ".*credentials.*",
-				"vcap_services");
+		this("password", "secret", "key", "token", ".*credentials.*", "vcap_services", "sun.java.command");
+	}
+
+	Sanitizer(String... keysToSanitize) {
+		setKeysToSanitize(keysToSanitize);
 	}
 
 	/**
@@ -75,9 +79,12 @@ class Sanitizer {
 	 * @return the potentially sanitized value
 	 */
 	public Object sanitize(String key, Object value) {
+		if (value == null) {
+			return null;
+		}
 		for (Pattern pattern : this.keysToSanitize) {
 			if (pattern.matcher(key).matches()) {
-				return (value == null ? null : "******");
+				return "******";
 			}
 		}
 		return value;

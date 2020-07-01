@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import org.springframework.core.io.support.SpringFactoriesLoader;
  *
  * @author Phillip Webb
  * @author Dave Syer
+ * @since 1.0.0
  */
 public interface SpringApplicationRunListener {
 
@@ -37,7 +38,7 @@ public interface SpringApplicationRunListener {
 	 * Called immediately when the run method has first started. Can be used for very
 	 * early initialization.
 	 */
-	void started();
+	void starting();
 
 	/**
 	 * Called once the environment has been prepared, but before the
@@ -62,7 +63,8 @@ public interface SpringApplicationRunListener {
 
 	/**
 	 * Called immediately before the run method finishes.
-	 * @param context the application context
+	 * @param context the application context or null if a failure occurred before the
+	 * context was created
 	 * @param exception any run exception or null if run completed successfully.
 	 */
 	void finished(ConfigurableApplicationContext context, Throwable exception);

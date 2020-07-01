@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,7 +42,7 @@ import org.springframework.boot.actuate.metrics.Metric;
 import org.springframework.lang.UsesJava8;
 import org.springframework.util.StopWatch;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Speed tests for {@link BufferGaugeService}.
@@ -64,13 +64,11 @@ public class BufferGaugeServiceSpeedTests {
 
 	private GaugeService service = new BufferGaugeService(this.gauges);
 
-	private BufferMetricReader reader = new BufferMetricReader(new CounterBuffers(),
-			this.gauges);
+	private BufferMetricReader reader = new BufferMetricReader(new CounterBuffers(), this.gauges);
 
 	private static int threadCount = 2;
 
-	private static final int number = Boolean.getBoolean("performance.test") ? 10000000
-			: 1000000;
+	private static final int number = (Boolean.getBoolean("performance.test") ? 10000000 : 1000000);
 
 	private static StopWatch watch = new StopWatch("count");
 
@@ -99,25 +97,23 @@ public class BufferGaugeServiceSpeedTests {
 		System.err.println("Rate(" + count + ")=" + rate + ", " + watch);
 		watch.start("readRaw" + count);
 		for (String name : names) {
-			this.gauges.forEach(Pattern.compile(name).asPredicate(),
-					new BiConsumer<String, GaugeBuffer>() {
-						@Override
-						public void accept(String name, GaugeBuffer value) {
-							err.println(name + "=" + value);
-						}
-					});
+			this.gauges.forEach(Pattern.compile(name).asPredicate(), new BiConsumer<String, GaugeBuffer>() {
+				@Override
+				public void accept(String name, GaugeBuffer value) {
+					err.println(name + "=" + value);
+				}
+			});
 		}
 		final DoubleAdder total = new DoubleAdder();
-		this.gauges.forEach(Pattern.compile(".*").asPredicate(),
-				new BiConsumer<String, GaugeBuffer>() {
-					@Override
-					public void accept(String name, GaugeBuffer value) {
-						total.add(value.getValue());
-					}
-				});
+		this.gauges.forEach(Pattern.compile(".*").asPredicate(), new BiConsumer<String, GaugeBuffer>() {
+			@Override
+			public void accept(String name, GaugeBuffer value) {
+				total.add(value.getValue());
+			}
+		});
 		watch.stop();
 		System.err.println("Read(" + count + ")=" + watch.getLastTaskTimeMillis() + "ms");
-		assertTrue(number * threadCount < total.longValue());
+		assertThat(number * threadCount < total.longValue()).isTrue();
 	}
 
 	@Theory
@@ -141,7 +137,7 @@ public class BufferGaugeServiceSpeedTests {
 		});
 		watch.stop();
 		System.err.println("Read(" + count + ")=" + watch.getLastTaskTimeMillis() + "ms");
-		assertTrue(0 < total.longValue());
+		assertThat(0 < total.longValue()).isTrue();
 	}
 
 	private void iterate(String taskName) throws Exception {

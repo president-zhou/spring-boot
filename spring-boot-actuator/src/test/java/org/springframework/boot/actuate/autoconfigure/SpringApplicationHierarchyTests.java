@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,8 +24,13 @@ import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfigurati
 import org.springframework.boot.autoconfigure.data.cassandra.CassandraDataAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.neo4j.Neo4jRepositoriesAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.test.ApplicationContextTestUtils;
+import org.springframework.boot.test.util.ApplicationContextTestUtils;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
@@ -58,22 +63,27 @@ public class SpringApplicationHierarchyTests {
 		this.context = builder.run("--server.port=0");
 	}
 
-	@EnableAutoConfiguration(exclude = { ElasticsearchDataAutoConfiguration.class,
-			ElasticsearchRepositoriesAutoConfiguration.class,
-			CassandraAutoConfiguration.class,
-			CassandraDataAutoConfiguration.class }, excludeName = {
+	@EnableAutoConfiguration(
+			exclude = { ElasticsearchDataAutoConfiguration.class, ElasticsearchRepositoriesAutoConfiguration.class,
+					CassandraAutoConfiguration.class, CassandraDataAutoConfiguration.class,
+					MongoDataAutoConfiguration.class, Neo4jDataAutoConfiguration.class,
+					Neo4jRepositoriesAutoConfiguration.class, RedisAutoConfiguration.class,
+					RedisRepositoriesAutoConfiguration.class },
+			excludeName = {
 					"org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchAutoConfiguration" })
 	public static class Child {
+
 	}
 
-	@EnableAutoConfiguration(exclude = { JolokiaAutoConfiguration.class,
-			EndpointMBeanExportAutoConfiguration.class,
-			ElasticsearchDataAutoConfiguration.class,
-			ElasticsearchRepositoriesAutoConfiguration.class,
-			CassandraAutoConfiguration.class,
-			CassandraDataAutoConfiguration.class }, excludeName = {
+	@EnableAutoConfiguration(exclude = { JolokiaAutoConfiguration.class, EndpointMBeanExportAutoConfiguration.class,
+			ElasticsearchDataAutoConfiguration.class, ElasticsearchRepositoriesAutoConfiguration.class,
+			CassandraAutoConfiguration.class, CassandraDataAutoConfiguration.class, MongoDataAutoConfiguration.class,
+			Neo4jDataAutoConfiguration.class, Neo4jRepositoriesAutoConfiguration.class, RedisAutoConfiguration.class,
+			RedisRepositoriesAutoConfiguration.class },
+			excludeName = {
 					"org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchAutoConfiguration" })
 	public static class Parent {
+
 	}
 
 }

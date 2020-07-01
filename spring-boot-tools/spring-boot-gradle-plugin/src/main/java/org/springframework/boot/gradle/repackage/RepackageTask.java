@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.gradle.api.Action;
 import org.gradle.api.DefaultTask;
@@ -34,7 +33,10 @@ import org.gradle.api.tasks.bundling.Jar;
 import org.springframework.boot.gradle.SpringBootPluginExtension;
 import org.springframework.boot.loader.tools.DefaultLaunchScript;
 import org.springframework.boot.loader.tools.LaunchScript;
+import org.springframework.boot.loader.tools.Layout;
+import org.springframework.boot.loader.tools.Layouts;
 import org.springframework.boot.loader.tools.Repackager;
+import org.springframework.boot.loader.tools.Repackager.MainClassTimeoutWarningListener;
 import org.springframework.util.FileCopyUtils;
 
 /**
@@ -43,10 +45,9 @@ import org.springframework.util.FileCopyUtils;
  * @author Phillip Webb
  * @author Janne Valkealahti
  * @author Andy Wilkinson
+ * @since 1.2.7
  */
 public class RepackageTask extends DefaultTask {
-
-	private static final long FIND_WARNING_TIMEOUT = TimeUnit.SECONDS.toMillis(10);
 
 	private String customConfiguration;
 
@@ -126,27 +127,23 @@ public class RepackageTask extends DefaultTask {
 		return this.embeddedLaunchScriptProperties;
 	}
 
-	public void setEmbeddedLaunchScriptProperties(
-			Map<String, String> embeddedLaunchScriptProperties) {
+	public void setEmbeddedLaunchScriptProperties(Map<String, String> embeddedLaunchScriptProperties) {
 		this.embeddedLaunchScriptProperties = embeddedLaunchScriptProperties;
 	}
 
 	@TaskAction
 	public void repackage() {
 		Project project = getProject();
-		SpringBootPluginExtension extension = project.getExtensions()
-				.getByType(SpringBootPluginExtension.class);
+		SpringBootPluginExtension extension = project.getExtensions().getByType(SpringBootPluginExtension.class);
 		ProjectLibraries libraries = getLibraries();
 		project.getTasks().withType(Jar.class, new RepackageAction(extension, libraries));
 	}
 
 	public ProjectLibraries getLibraries() {
 		Project project = getProject();
-		SpringBootPluginExtension extension = project.getExtensions()
-				.getByType(SpringBootPluginExtension.class);
+		SpringBootPluginExtension extension = project.getExtensions().getByType(SpringBootPluginExtension.class);
 		ProjectLibraries libraries = new ProjectLibraries(project, extension,
-				(this.excludeDevtools != null && this.excludeDevtools)
-						|| extension.isExcludeDevtools());
+				(this.excludeDevtools != null) ? this.excludeDevtools : extension.isExcludeDevtools());
 		if (extension.getProvidedConfiguration() != null) {
 			libraries.setProvidedConfigurationName(extension.getProvidedConfiguration());
 		}
@@ -181,8 +178,7 @@ public class RepackageTask extends DefaultTask {
 			}
 			Object withJarTask = RepackageTask.this.withJarTask;
 			if (!isTaskMatch(jarTask, withJarTask)) {
-				getLogger().info(
-						"Jar task not repackaged (didn't match withJarTask): " + jarTask);
+				getLogger().info("Jar task not repackaged (didn't match withJarTask): " + jarTask);
 				return;
 			}
 			File file = jarTask.getArchivePath();
@@ -195,11 +191,10 @@ public class RepackageTask extends DefaultTask {
 			if (withJarTask == null) {
 				if ("".equals(task.getClassifier())) {
 					Set<Object> tasksWithCustomRepackaging = new HashSet<Object>();
-					for (RepackageTask repackageTask : RepackageTask.this.getProject()
-							.getTasks().withType(RepackageTask.class)) {
+					for (RepackageTask repackageTask : RepackageTask.this.getProject().getTasks()
+							.withType(RepackageTask.class)) {
 						if (repackageTask.getWithJarTask() != null) {
-							tasksWithCustomRepackaging
-									.add(repackageTask.getWithJarTask());
+							tasksWithCustomRepackaging.add(repackageTask.getWithJarTask());
 						}
 					}
 					return !tasksWithCustomRepackaging.contains(task);
@@ -209,16 +204,22 @@ public class RepackageTask extends DefaultTask {
 			return task.equals(withJarTask) || task.getName().equals(withJarTask);
 		}
 
+		@SuppressWarnings("deprecation")
 		private void repackage(File file) {
 			File outputFile = RepackageTask.this.outputFile;
 			if (outputFile != null && !file.equals(outputFile)) {
 				copy(file, outputFile);
 				file = outputFile;
 			}
-			Repackager repackager = new LoggingRepackager(file);
+			Repackager repackager = new Repackager(file, this.extension.getLayoutFactory());
+			repackager.addMainClassTimeoutWarningListener(new LoggingMainClassTimeoutWarningListener());
 			setMainClass(repackager);
-			if (this.extension.convertLayout() != null) {
-				repackager.setLayout(this.extension.convertLayout());
+			Layout layout = this.extension.convertLayout();
+			if (layout != null) {
+				if (layout instanceof Layouts.Module) {
+					getLogger().warn("Module layout is deprecated. Please use a custom" + " LayoutFactory instead.");
+				}
+				repackager.setLayout(layout);
 			}
 			repackager.setBackupSource(this.extension.isBackupSource());
 			try {
@@ -240,60 +241,59 @@ public class RepackageTask extends DefaultTask {
 		}
 
 		private void setMainClass(Repackager repackager) {
-			String mainClass = null;
-			if (getProject().hasProperty("mainClassName")) {
-				mainClass = (String) getProject().property("mainClassName");
-			}
-			else {
-				ExtraPropertiesExtension extraProperties = (ExtraPropertiesExtension) getProject()
-						.getExtensions().getByName("ext");
-				if (extraProperties.has("mainClassName")) {
-					mainClass = (String) extraProperties.get("mainClassName");
-				}
-			}
+			String mainClassName = getMainClassNameProperty();
 			if (RepackageTask.this.mainClass != null) {
-				mainClass = RepackageTask.this.mainClass;
+				mainClassName = RepackageTask.this.mainClass;
 			}
 			else if (this.extension.getMainClass() != null) {
-				mainClass = this.extension.getMainClass();
+				mainClassName = this.extension.getMainClass();
 			}
 			else {
 				Task runTask = getProject().getTasks().findByName("run");
 				if (runTask != null && runTask.hasProperty("main")) {
-					mainClass = (String) getProject().getTasks().getByName("run")
-							.property("main");
+					mainClassName = (String) getProject().getTasks().getByName("run").property("main");
 				}
 			}
-			if (mainClass != null) {
-				getLogger().info("Setting mainClass: " + mainClass);
-				repackager.setMainClass(mainClass);
+			if (mainClassName != null) {
+				getLogger().info("Setting mainClass: " + mainClassName);
+				repackager.setMainClass(mainClassName);
 			}
 			else {
 				getLogger().info("No mainClass configured");
 			}
 		}
 
+		private String getMainClassNameProperty() {
+			if (getProject().hasProperty("mainClassName")) {
+				return (String) getProject().property("mainClassName");
+			}
+			ExtraPropertiesExtension extraProperties = (ExtraPropertiesExtension) getProject().getExtensions()
+					.getByName("ext");
+			if (extraProperties.has("mainClassName")) {
+				return (String) extraProperties.get("mainClassName");
+			}
+			return null;
+		}
+
 		private LaunchScript getLaunchScript() throws IOException {
 			if (isExecutable() || getEmbeddedLaunchScript() != null) {
-				return new DefaultLaunchScript(getEmbeddedLaunchScript(),
-						getEmbeddedLaunchScriptProperties());
+				return new DefaultLaunchScript(getEmbeddedLaunchScript(), getEmbeddedLaunchScriptProperties());
 			}
 			return null;
 		}
 
 		private boolean isExecutable() {
-			return RepackageTask.this.executable != null ? RepackageTask.this.executable
+			return (RepackageTask.this.executable != null) ? RepackageTask.this.executable
 					: this.extension.isExecutable();
 		}
 
 		private File getEmbeddedLaunchScript() {
-			return RepackageTask.this.embeddedLaunchScript != null
-					? RepackageTask.this.embeddedLaunchScript
+			return (RepackageTask.this.embeddedLaunchScript != null) ? RepackageTask.this.embeddedLaunchScript
 					: this.extension.getEmbeddedLaunchScript();
 		}
 
 		private Map<String, String> getEmbeddedLaunchScriptProperties() {
-			return RepackageTask.this.embeddedLaunchScriptProperties != null
+			return (RepackageTask.this.embeddedLaunchScriptProperties != null)
 					? RepackageTask.this.embeddedLaunchScriptProperties
 					: this.extension.getEmbeddedLaunchScriptProperties();
 		}
@@ -303,26 +303,12 @@ public class RepackageTask extends DefaultTask {
 	/**
 	 * {@link Repackager} that also logs when searching takes too long.
 	 */
-	private class LoggingRepackager extends Repackager {
-
-		LoggingRepackager(File source) {
-			super(source);
-		}
+	private class LoggingMainClassTimeoutWarningListener implements MainClassTimeoutWarningListener {
 
 		@Override
-		protected String findMainMethod(java.util.jar.JarFile source) throws IOException {
-			long startTime = System.currentTimeMillis();
-			try {
-				return super.findMainMethod(source);
-			}
-			finally {
-				long duration = System.currentTimeMillis() - startTime;
-				if (duration > FIND_WARNING_TIMEOUT) {
-					getLogger().warn("Searching for the main-class is taking "
-							+ "some time, consider using setting "
-							+ "'springBoot.mainClass'");
-				}
-			}
+		public void handleTimeoutWarning(long duration, String mainMethod) {
+			getLogger().warn("Searching for the main-class is taking " + "some time, consider using setting "
+					+ "'springBoot.mainClass'");
 		}
 
 	}

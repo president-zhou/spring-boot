@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,7 +27,7 @@ import org.apache.activemq.artemis.jms.server.config.impl.JMSQueueConfigurationI
 import org.apache.activemq.artemis.jms.server.config.impl.TopicConfigurationImpl;
 import org.apache.activemq.artemis.jms.server.embedded.EmbeddedJMS;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -44,32 +44,37 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator;
  */
 @Configuration
 @ConditionalOnClass(name = ArtemisConnectionFactoryFactory.EMBEDDED_JMS_CLASS)
-@ConditionalOnProperty(prefix = "spring.artemis.embedded", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "spring.artemis.embedded", name = "enabled", havingValue = "true",
+		matchIfMissing = true)
 class ArtemisEmbeddedServerConfiguration {
 
-	@Autowired
-	private ArtemisProperties properties;
+	private final ArtemisProperties properties;
 
-	@Autowired(required = false)
-	private List<ArtemisConfigurationCustomizer> configurationCustomizers;
+	private final List<ArtemisConfigurationCustomizer> configurationCustomizers;
 
-	@Autowired(required = false)
-	private List<JMSQueueConfiguration> queuesConfiguration;
+	private final List<JMSQueueConfiguration> queuesConfiguration;
 
-	@Autowired(required = false)
-	private List<TopicConfiguration> topicsConfiguration;
+	private final List<TopicConfiguration> topicsConfiguration;
+
+	ArtemisEmbeddedServerConfiguration(ArtemisProperties properties,
+			ObjectProvider<List<ArtemisConfigurationCustomizer>> configurationCustomizers,
+			ObjectProvider<List<JMSQueueConfiguration>> queuesConfiguration,
+			ObjectProvider<List<TopicConfiguration>> topicsConfiguration) {
+		this.properties = properties;
+		this.configurationCustomizers = configurationCustomizers.getIfAvailable();
+		this.queuesConfiguration = queuesConfiguration.getIfAvailable();
+		this.topicsConfiguration = topicsConfiguration.getIfAvailable();
+	}
 
 	@Bean
 	@ConditionalOnMissingBean
 	public org.apache.activemq.artemis.core.config.Configuration artemisConfiguration() {
-		return new ArtemisEmbeddedConfigurationFactory(this.properties)
-				.createConfiguration();
+		return new ArtemisEmbeddedConfigurationFactory(this.properties).createConfiguration();
 	}
 
 	@Bean(initMethod = "start", destroyMethod = "stop")
 	@ConditionalOnMissingBean
-	public EmbeddedJMS artemisServer(
-			org.apache.activemq.artemis.core.config.Configuration configuration,
+	public EmbeddedJMS artemisServer(org.apache.activemq.artemis.core.config.Configuration configuration,
 			JMSConfiguration jmsConfiguration) {
 		EmbeddedJMS server = new EmbeddedJMS();
 		customize(configuration);
@@ -79,8 +84,7 @@ class ArtemisEmbeddedServerConfiguration {
 		return server;
 	}
 
-	private void customize(
-			org.apache.activemq.artemis.core.config.Configuration configuration) {
+	private void customize(org.apache.activemq.artemis.core.config.Configuration configuration) {
 		if (this.configurationCustomizers != null) {
 			AnnotationAwareOrderComparator.sort(this.configurationCustomizers);
 			for (ArtemisConfigurationCustomizer customizer : this.configurationCustomizers) {

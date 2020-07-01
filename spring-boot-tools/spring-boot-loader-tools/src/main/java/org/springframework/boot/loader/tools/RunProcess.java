@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,11 +17,13 @@
 package org.springframework.boot.loader.tools;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Locale;
 
 import org.springframework.util.ReflectionUtils;
 
@@ -36,10 +38,11 @@ import org.springframework.util.ReflectionUtils;
  */
 public class RunProcess {
 
-	private static final Method INHERIT_IO_METHOD = ReflectionUtils
-			.findMethod(ProcessBuilder.class, "inheritIO");
+	private static final Method INHERIT_IO_METHOD = ReflectionUtils.findMethod(ProcessBuilder.class, "inheritIO");
 
 	private static final long JUST_ENDED_LIMIT = 500;
+
+	private File workingDirectory;
 
 	private final String[] command;
 
@@ -47,7 +50,23 @@ public class RunProcess {
 
 	private volatile long endTime;
 
+	/**
+	 * Creates new {@link RunProcess} instance for the specified command.
+	 * @param command the program to execute and its arguments
+	 */
 	public RunProcess(String... command) {
+		this(null, command);
+	}
+
+	/**
+	 * Creates new {@link RunProcess} instance for the specified working directory and
+	 * command.
+	 * @param workingDirectory the working directory of the child process or {@code null}
+	 * to run in the working directory of the current Java process
+	 * @param command the program to execute and its arguments
+	 */
+	public RunProcess(File workingDirectory, String... command) {
+		this.workingDirectory = workingDirectory;
 		this.command = command;
 	}
 
@@ -55,9 +74,9 @@ public class RunProcess {
 		return run(waitForProcess, Arrays.asList(args));
 	}
 
-	protected int run(boolean waitForProcess, Collection<String> args)
-			throws IOException {
+	protected int run(boolean waitForProcess, Collection<String> args) throws IOException {
 		ProcessBuilder builder = new ProcessBuilder(this.command);
+		builder.directory(this.workingDirectory);
 		builder.command().addAll(args);
 		builder.redirectErrorStream(true);
 		boolean inheritedIO = inheritIO(builder);
@@ -108,7 +127,7 @@ public class RunProcess {
 	// There's a bug in the Windows VM (https://bugs.openjdk.java.net/browse/JDK-8023130)
 	// that means we need to avoid inheritIO
 	private static boolean isInheritIOBroken() {
-		if (!System.getProperty("os.name", "none").toLowerCase().contains("windows")) {
+		if (!System.getProperty("os.name", "none").toLowerCase(Locale.ENGLISH).contains("windows")) {
 			return false;
 		}
 		String runtime = System.getProperty("java.runtime.version");
@@ -132,8 +151,7 @@ public class RunProcess {
 	}
 
 	private void redirectOutput(Process process) {
-		final BufferedReader reader = new BufferedReader(
-				new InputStreamReader(process.getInputStream()));
+		final BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 		new Thread() {
 
 			@Override

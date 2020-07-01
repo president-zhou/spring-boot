@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,22 +38,25 @@ import org.springframework.util.ObjectUtils;
 public final class Status {
 
 	/**
-	 * Convenient constant value representing unknown state.
+	 * {@link Status} indicating that the component or subsystem is in an unknown state.
 	 */
 	public static final Status UNKNOWN = new Status("UNKNOWN");
 
 	/**
-	 * Convenient constant value representing up state.
+	 * {@link Status} indicating that the component or subsystem is functioning as
+	 * expected.
 	 */
 	public static final Status UP = new Status("UP");
 
 	/**
-	 * Convenient constant value representing down state.
+	 * {@link Status} indicating that the component or subsystem has suffered an
+	 * unexpected failure.
 	 */
 	public static final Status DOWN = new Status("DOWN");
 
 	/**
-	 * Convenient constant value representing out-of-service state.
+	 * {@link Status} indicating that the component or subsystem has been taken out of
+	 * service and should not be used.
 	 */
 	public static final Status OUT_OF_SERVICE = new Status("OUT_OF_SERVICE");
 
@@ -100,16 +103,6 @@ public final class Status {
 	}
 
 	@Override
-	public String toString() {
-		return this.code;
-	}
-
-	@Override
-	public int hashCode() {
-		return this.code.hashCode();
-	}
-
-	@Override
 	public boolean equals(Object obj) {
 		if (obj == this) {
 			return true;
@@ -118,6 +111,16 @@ public final class Status {
 			return ObjectUtils.nullSafeEquals(this.code, ((Status) obj).code);
 		}
 		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return this.code.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return this.code;
 	}
 
 }

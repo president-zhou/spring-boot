@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,9 +34,7 @@ import org.springframework.boot.devtools.restart.classloader.ClassLoaderFile.Kin
 import org.springframework.boot.devtools.restart.classloader.ClassLoaderFiles;
 import org.springframework.util.FileCopyUtils;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link RestartServer}.
@@ -65,8 +63,7 @@ public class RestartServerTests {
 		URL url3 = new URL("file:/proj/module-c.jar!/");
 		URL url4 = new URL("file:/proj/module-d.jar!/");
 		URLClassLoader classLoaderA = new URLClassLoader(new URL[] { url1, url2 });
-		URLClassLoader classLoaderB = new URLClassLoader(new URL[] { url3, url4 },
-				classLoaderA);
+		URLClassLoader classLoaderB = new URLClassLoader(new URL[] { url3, url4 }, classLoaderA);
 		SourceFolderUrlFilter filter = new DefaultSourceFolderUrlFilter();
 		MockRestartServer server = new MockRestartServer(filter, classLoaderB);
 		ClassLoaderFiles files = new ClassLoaderFiles();
@@ -76,8 +73,8 @@ public class RestartServerTests {
 		files.addFile("my/module-c", "ClassB.class", fileB);
 		server.updateAndRestart(files);
 		Set<URL> expectedUrls = new LinkedHashSet<URL>(Arrays.asList(url1, url3));
-		assertThat(server.restartUrls, equalTo(expectedUrls));
-		assertThat(server.restartFiles, equalTo(files));
+		assertThat(server.restartUrls).isEqualTo(expectedUrls);
+		assertThat(server.restartFiles).isEqualTo(files);
 	}
 
 	@Test
@@ -95,7 +92,7 @@ public class RestartServerTests {
 		ClassLoaderFile fileA = new ClassLoaderFile(Kind.ADDED, new byte[0]);
 		files.addFile("my/module-a", "ClassA.class", fileA);
 		server.updateAndRestart(files);
-		assertThat(jarFile.lastModified(), greaterThan(startTime - 1000));
+		assertThat(jarFile.lastModified()).isGreaterThan(startTime - 1000);
 	}
 
 	@Test
@@ -114,13 +111,12 @@ public class RestartServerTests {
 		ClassLoaderFile fileA = new ClassLoaderFile(Kind.ADDED, "def".getBytes());
 		files.addFile("my/module-a", "ClassA.class", fileA);
 		server.updateAndRestart(files);
-		assertThat(FileCopyUtils.copyToByteArray(classFile), equalTo("def".getBytes()));
+		assertThat(FileCopyUtils.copyToByteArray(classFile)).isEqualTo("def".getBytes());
 	}
 
 	private static class MockRestartServer extends RestartServer {
 
-		MockRestartServer(SourceFolderUrlFilter sourceFolderUrlFilter,
-				ClassLoader classLoader) {
+		MockRestartServer(SourceFolderUrlFilter sourceFolderUrlFilter, ClassLoader classLoader) {
 			super(sourceFolderUrlFilter, classLoader);
 		}
 

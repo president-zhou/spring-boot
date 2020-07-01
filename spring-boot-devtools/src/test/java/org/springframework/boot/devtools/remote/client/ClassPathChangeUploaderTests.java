@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,9 +45,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.util.FileCopyUtils;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ClassPathChangeUploader}.
@@ -70,8 +68,7 @@ public class ClassPathChangeUploaderTests {
 	@Before
 	public void setup() {
 		this.requestFactory = new MockClientHttpRequestFactory();
-		this.uploader = new ClassPathChangeUploader("http://localhost/upload",
-				this.requestFactory);
+		this.uploader = new ClassPathChangeUploader("http://localhost/upload", this.requestFactory);
 	}
 
 	@Test
@@ -108,7 +105,7 @@ public class ClassPathChangeUploaderTests {
 		ClassPathChangedEvent event = createClassPathChangedEvent(sourceFolder);
 		this.requestFactory.willRespond(HttpStatus.OK);
 		this.uploader.onApplicationEvent(event);
-		assertThat(this.requestFactory.getExecutedRequests().size(), is(1));
+		assertThat(this.requestFactory.getExecutedRequests()).hasSize(1);
 		MockClientHttpRequest request = this.requestFactory.getExecutedRequests().get(0);
 		verifyUploadRequest(sourceFolder, request);
 	}
@@ -120,33 +117,30 @@ public class ClassPathChangeUploaderTests {
 		this.requestFactory.willRespond(new ConnectException());
 		this.requestFactory.willRespond(HttpStatus.OK);
 		this.uploader.onApplicationEvent(event);
-		assertThat(this.requestFactory.getExecutedRequests().size(), is(2));
-		verifyUploadRequest(sourceFolder,
-				this.requestFactory.getExecutedRequests().get(1));
+		assertThat(this.requestFactory.getExecutedRequests()).hasSize(2);
+		verifyUploadRequest(sourceFolder, this.requestFactory.getExecutedRequests().get(1));
 	}
 
 	private void verifyUploadRequest(File sourceFolder, MockClientHttpRequest request)
 			throws IOException, ClassNotFoundException {
 		ClassLoaderFiles classLoaderFiles = deserialize(request.getBodyAsBytes());
 		Collection<SourceFolder> sourceFolders = classLoaderFiles.getSourceFolders();
-		assertThat(sourceFolders.size(), equalTo(1));
+		assertThat(sourceFolders.size()).isEqualTo(1);
 		SourceFolder classSourceFolder = sourceFolders.iterator().next();
-		assertThat(classSourceFolder.getName(), equalTo(sourceFolder.getAbsolutePath()));
+		assertThat(classSourceFolder.getName()).isEqualTo(sourceFolder.getAbsolutePath());
 		Iterator<ClassLoaderFile> classFiles = classSourceFolder.getFiles().iterator();
 		assertClassFile(classFiles.next(), "File1", ClassLoaderFile.Kind.ADDED);
 		assertClassFile(classFiles.next(), "File2", ClassLoaderFile.Kind.MODIFIED);
 		assertClassFile(classFiles.next(), null, ClassLoaderFile.Kind.DELETED);
-		assertThat(classFiles.hasNext(), equalTo(false));
+		assertThat(classFiles.hasNext()).isFalse();
 	}
 
 	private void assertClassFile(ClassLoaderFile file, String content, Kind kind) {
-		assertThat(file.getContents(),
-				equalTo(content == null ? null : content.getBytes()));
-		assertThat(file.getKind(), equalTo(kind));
+		assertThat(file.getContents()).isEqualTo((content != null) ? content.getBytes() : null);
+		assertThat(file.getKind()).isEqualTo(kind);
 	}
 
-	private ClassPathChangedEvent createClassPathChangedEvent(File sourceFolder)
-			throws IOException {
+	private ClassPathChangedEvent createClassPathChangedEvent(File sourceFolder) throws IOException {
 		Set<ChangedFile> files = new LinkedHashSet<ChangedFile>();
 		File file1 = createFile(sourceFolder, "File1");
 		File file2 = createFile(sourceFolder, "File2");
@@ -166,10 +160,8 @@ public class ClassPathChangeUploaderTests {
 		return file;
 	}
 
-	private ClassLoaderFiles deserialize(byte[] bytes)
-			throws IOException, ClassNotFoundException {
-		ObjectInputStream objectInputStream = new ObjectInputStream(
-				new ByteArrayInputStream(bytes));
+	private ClassLoaderFiles deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
+		ObjectInputStream objectInputStream = new ObjectInputStream(new ByteArrayInputStream(bytes));
 		return (ClassLoaderFiles) objectInputStream.readObject();
 	}
 

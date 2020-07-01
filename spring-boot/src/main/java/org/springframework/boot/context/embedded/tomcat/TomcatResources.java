@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,11 +19,11 @@ package org.springframework.boot.context.embedded.tomcat;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLClassLoader;
+import java.util.List;
 
 import javax.naming.directory.DirContext;
-import javax.servlet.ServletContext;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.WebResourceRoot.ResourceSetType;
@@ -37,6 +37,7 @@ import org.springframework.util.ReflectionUtils;
  *
  * @author Dave Syer
  * @author Phillip Webb
+ * @author Andy Wilkinson
  */
 abstract class TomcatResources {
 
@@ -46,15 +47,11 @@ abstract class TomcatResources {
 		this.context = context;
 	}
 
-	/**
-	 * Add resources from the classpath.
-	 */
-	public void addClasspathResources() {
-		ClassLoader loader = getClass().getClassLoader();
-		if (loader instanceof URLClassLoader) {
-			for (URL url : ((URLClassLoader) loader).getURLs()) {
-				String file = url.getFile();
-				if (file.endsWith(".jar") || file.endsWith(".jar!/")) {
+	void addResourceJars(List<URL> resourceJarUrls) {
+		for (URL url : resourceJarUrls) {
+			try {
+				String path = url.getPath();
+				if (path.endsWith(".jar") || path.endsWith(".jar!/")) {
 					String jar = url.toString();
 					if (!jar.startsWith("jar:")) {
 						// A jar file in the file system. Convert to Jar URL.
@@ -62,12 +59,15 @@ abstract class TomcatResources {
 					}
 					addJar(jar);
 				}
-				else if (url.toString().startsWith("file:")) {
-					String dir = url.toString().substring("file:".length());
-					if (new File(dir).isDirectory()) {
-						addDir(dir, url);
-					}
+				else if ("jar".equals(url.getProtocol())) {
+					addJar(url.toString());
 				}
+				else {
+					addDir(new File(url.toURI()).getAbsolutePath(), url);
+				}
+			}
+			catch (URISyntaxException ex) {
+				throw new IllegalStateException("Failed to create File from URL '" + url + "'");
 			}
 		}
 	}
@@ -110,8 +110,8 @@ abstract class TomcatResources {
 
 		Tomcat7Resources(Context context) {
 			super(context);
-			this.addResourceJarUrlMethod = ReflectionUtils.findMethod(context.getClass(),
-					"addResourceJarUrl", URL.class);
+			this.addResourceJarUrlMethod = ReflectionUtils.findMethod(context.getClass(), "addResourceJarUrl",
+					URL.class);
 		}
 
 		@Override
@@ -139,17 +139,15 @@ abstract class TomcatResources {
 
 		@Override
 		protected void addDir(String dir, URL url) {
-			if (getContext() instanceof ServletContext) {
+			if (getContext() instanceof StandardContext) {
 				try {
-					Class<?> fileDirContextClass = Class
-							.forName("org.apache.naming.resources.FileDirContext");
-					Method setDocBaseMethod = ReflectionUtils
-							.findMethod(fileDirContextClass, "setDocBase", String.class);
+					Class<?> fileDirContextClass = Class.forName("org.apache.naming.resources.FileDirContext");
+					Method setDocBaseMethod = ReflectionUtils.findMethod(fileDirContextClass, "setDocBase",
+							String.class);
 					Object fileDirContext = fileDirContextClass.newInstance();
 					setDocBaseMethod.invoke(fileDirContext, dir);
-					Method addResourcesDirContextMethod = ReflectionUtils.findMethod(
-							StandardContext.class, "addResourcesDirContext",
-							DirContext.class);
+					Method addResourcesDirContextMethod = ReflectionUtils.findMethod(StandardContext.class,
+							"addResourcesDirContext", DirContext.class);
 					addResourcesDirContextMethod.invoke(getContext(), fileDirContext);
 				}
 				catch (Exception ex) {
@@ -157,6 +155,7 @@ abstract class TomcatResources {
 				}
 			}
 		}
+
 	}
 
 	/**
@@ -188,8 +187,7 @@ abstract class TomcatResources {
 				}
 				URL url = new URL(resource);
 				String path = "/META-INF/resources";
-				getContext().getResources().createWebResourceSet(
-						ResourceSetType.RESOURCE_JAR, "/", url, path);
+				getContext().getResources().createWebResourceSet(ResourceSetType.RESOURCE_JAR, "/", url, path);
 			}
 			catch (Exception ex) {
 				// Ignore (probably not a directory)

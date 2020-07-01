@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,29 +20,48 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.UniformReservoir;
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Matchers.anyString;
 
 /**
  * Tests for {@link DropwizardMetricServices}.
  *
  * @author Dave Syer
+ * @author Lucas Saldanha
  */
 public class DropwizardMetricServicesTests {
 
-	private final MetricRegistry registry = new MetricRegistry();
-	private final DropwizardMetricServices writer = new DropwizardMetricServices(
-			this.registry);
+	private MetricRegistry registry = new MetricRegistry();
+
+	@Mock
+	private ReservoirFactory reservoirFactory;
+
+	private DropwizardMetricServices writer;
+
+	@Before
+	public void setup() {
+		MockitoAnnotations.initMocks(this);
+		this.writer = new DropwizardMetricServices(this.registry, this.reservoirFactory);
+	}
 
 	@Test
 	public void incrementCounter() {
 		this.writer.increment("foo");
 		this.writer.increment("foo");
 		this.writer.increment("foo");
-		assertEquals(3, this.registry.counter("counter.foo").getCount());
+		assertThat(this.registry.counter("counter.foo").getCount()).isEqualTo(3);
 	}
 
 	@Test
@@ -50,7 +69,7 @@ public class DropwizardMetricServicesTests {
 		this.writer.increment("meter.foo");
 		this.writer.increment("meter.foo");
 		this.writer.increment("meter.foo");
-		assertEquals(3, this.registry.meter("meter.foo").getCount());
+		assertThat(this.registry.meter("meter.foo").getCount()).isEqualTo(3);
 	}
 
 	@Test
@@ -58,7 +77,7 @@ public class DropwizardMetricServicesTests {
 		this.writer.increment("counter.foo");
 		this.writer.increment("counter.foo");
 		this.writer.increment("counter.foo");
-		assertEquals(3, this.registry.counter("counter.foo").getCount());
+		assertThat(this.registry.counter("counter.foo").getCount()).isEqualTo(3);
 	}
 
 	@Test
@@ -66,23 +85,45 @@ public class DropwizardMetricServicesTests {
 		this.writer.submit("foo", 2.1);
 		@SuppressWarnings("unchecked")
 		Gauge<Double> gauge = (Gauge<Double>) this.registry.getMetrics().get("gauge.foo");
-		assertEquals(new Double(2.1), gauge.getValue());
+		assertThat(gauge.getValue()).isEqualTo(new Double(2.1));
 		this.writer.submit("foo", 2.3);
-		assertEquals(new Double(2.3), gauge.getValue());
+		assertThat(gauge.getValue()).isEqualTo(new Double(2.3));
 	}
 
 	@Test
 	public void setPredefinedTimer() {
 		this.writer.submit("timer.foo", 200);
 		this.writer.submit("timer.foo", 300);
-		assertEquals(2, this.registry.timer("timer.foo").getCount());
+		assertThat(this.registry.timer("timer.foo").getCount()).isEqualTo(2);
+	}
+
+	@Test
+	public void setCustomReservoirTimer() {
+		given(this.reservoirFactory.getReservoir(anyString())).willReturn(new UniformReservoir());
+		this.writer.submit("timer.foo", 200);
+		this.writer.submit("timer.foo", 300);
+		assertThat(this.registry.timer("timer.foo").getCount()).isEqualTo(2);
+		Timer timer = (Timer) this.registry.getMetrics().get("timer.foo");
+		Histogram histogram = (Histogram) ReflectionTestUtils.getField(timer, "histogram");
+		assertThat(ReflectionTestUtils.getField(histogram, "reservoir").getClass().equals(UniformReservoir.class))
+				.isTrue();
 	}
 
 	@Test
 	public void setPredefinedHistogram() {
 		this.writer.submit("histogram.foo", 2.1);
 		this.writer.submit("histogram.foo", 2.3);
-		assertEquals(2, this.registry.histogram("histogram.foo").getCount());
+		assertThat(this.registry.histogram("histogram.foo").getCount()).isEqualTo(2);
+	}
+
+	@Test
+	public void setCustomReservoirHistogram() {
+		given(this.reservoirFactory.getReservoir(anyString())).willReturn(new UniformReservoir());
+		this.writer.submit("histogram.foo", 2.1);
+		this.writer.submit("histogram.foo", 2.3);
+		assertThat(this.registry.histogram("histogram.foo").getCount()).isEqualTo(2);
+		assertThat(ReflectionTestUtils.getField(this.registry.getMetrics().get("histogram.foo"), "reservoir").getClass()
+				.equals(UniformReservoir.class)).isTrue();
 	}
 
 	/**
@@ -90,7 +131,6 @@ public class DropwizardMetricServicesTests {
 	 * thread is updating the same set of metrics. This would be an example case of the
 	 * writer being used with the MetricsFilter handling several requests/sec to the same
 	 * URL.
-	 *
 	 * @throws Exception if an error occurs
 	 */
 	@Test
@@ -108,7 +148,7 @@ public class DropwizardMetricServicesTests {
 		}
 
 		for (WriterThread thread : threads) {
-			assertFalse("expected thread caused unexpected exception", thread.isFailed());
+			assertThat(thread.isFailed()).as("expected thread caused unexpected exception").isFalse();
 		}
 	}
 
@@ -120,8 +160,7 @@ public class DropwizardMetricServicesTests {
 
 		private DropwizardMetricServices writer;
 
-		public WriterThread(ThreadGroup group, int index,
-				DropwizardMetricServices writer) {
+		public WriterThread(ThreadGroup group, int index, DropwizardMetricServices writer) {
 			super(group, "Writer-" + index);
 			this.index = index;
 			this.writer = writer;

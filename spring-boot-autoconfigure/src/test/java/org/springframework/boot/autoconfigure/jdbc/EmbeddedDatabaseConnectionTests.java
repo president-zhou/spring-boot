@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link EmbeddedDatabaseConnection}.
@@ -35,20 +34,19 @@ public class EmbeddedDatabaseConnectionTests {
 
 	@Test
 	public void h2CustomDatabaseName() {
-		assertThat(EmbeddedDatabaseConnection.H2.getUrl("mydb"),
-				is("jdbc:h2:mem:mydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"));
+		assertThat(EmbeddedDatabaseConnection.H2.getUrl("mydb"))
+				.isEqualTo("jdbc:h2:mem:mydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
 	}
 
 	@Test
 	public void derbyCustomDatabaseName() {
-		assertThat(EmbeddedDatabaseConnection.DERBY.getUrl("myderbydb"),
-				is("jdbc:derby:memory:myderbydb;create=true"));
+		assertThat(EmbeddedDatabaseConnection.DERBY.getUrl("myderbydb"))
+				.isEqualTo("jdbc:derby:memory:myderbydb;create=true");
 	}
 
 	@Test
 	public void hsqlCustomDatabaseName() {
-		assertThat(EmbeddedDatabaseConnection.HSQL.getUrl("myhsql"),
-				is("jdbc:hsqldb:mem:myhsql"));
+		assertThat(EmbeddedDatabaseConnection.HSQL.getUrl("myhsql")).isEqualTo("jdbc:hsqldb:mem:myhsql");
 	}
 
 	@Test

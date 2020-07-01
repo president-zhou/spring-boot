@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.devtools.filewatch.ChangedFile;
 import org.springframework.boot.devtools.filewatch.FileSystemWatcher;
 import org.springframework.boot.devtools.filewatch.FileSystemWatcherFactory;
@@ -40,8 +39,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.util.FileCopyUtils;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -62,8 +60,8 @@ public class ClassPathFileSystemWatcherTests {
 		this.thrown.expect(IllegalArgumentException.class);
 		this.thrown.expectMessage("Urls must not be null");
 		URL[] urls = null;
-		new ClassPathFileSystemWatcher(mock(FileSystemWatcherFactory.class),
-				mock(ClassPathRestartStrategy.class), urls);
+		new ClassPathFileSystemWatcher(mock(FileSystemWatcherFactory.class), mock(ClassPathRestartStrategy.class),
+				urls);
 	}
 
 	@Test
@@ -72,36 +70,44 @@ public class ClassPathFileSystemWatcherTests {
 		Map<String, Object> properties = new HashMap<String, Object>();
 		File folder = this.temp.newFolder();
 		List<URL> urls = new ArrayList<URL>();
-		urls.add(new URL("http://spring.io"));
+		urls.add(new URL("https://spring.io"));
 		urls.add(folder.toURI().toURL());
 		properties.put("urls", urls);
 		MapPropertySource propertySource = new MapPropertySource("test", properties);
 		context.getEnvironment().getPropertySources().addLast(propertySource);
 		context.register(Config.class);
 		context.refresh();
-		Thread.sleep(100);
+		Thread.sleep(200);
 		File classFile = new File(folder, "Example.class");
 		FileCopyUtils.copy("file".getBytes(), classFile);
-		Thread.sleep(1100);
+		Thread.sleep(1000);
 		List<ClassPathChangedEvent> events = context.getBean(Listener.class).getEvents();
-		assertThat(events.size(), equalTo(1));
-		assertThat(events.get(0).getChangeSet().iterator().next().getFiles().iterator()
-				.next().getFile(), equalTo(classFile));
+		for (int i = 0; i < 20; i++) {
+			if (!events.isEmpty()) {
+				break;
+			}
+			Thread.sleep(500);
+		}
+		assertThat(events.size()).isEqualTo(1);
+		assertThat(events.get(0).getChangeSet().iterator().next().getFiles().iterator().next().getFile())
+				.isEqualTo(classFile);
 		context.close();
 	}
 
 	@Configuration
 	public static class Config {
 
-		@Autowired
-		public Environment environment;
+		public final Environment environment;
+
+		public Config(Environment environment) {
+			this.environment = environment;
+		}
 
 		@Bean
 		public ClassPathFileSystemWatcher watcher() {
 			FileSystemWatcher watcher = new FileSystemWatcher(false, 100, 10);
 			URL[] urls = this.environment.getProperty("urls", URL[].class);
-			return new ClassPathFileSystemWatcher(
-					new MockFileSystemWatcherFactory(watcher), restartStrategy(), urls);
+			return new ClassPathFileSystemWatcher(new MockFileSystemWatcherFactory(watcher), restartStrategy(), urls);
 		}
 
 		@Bean
@@ -138,8 +144,7 @@ public class ClassPathFileSystemWatcherTests {
 
 	}
 
-	private static class MockFileSystemWatcherFactory
-			implements FileSystemWatcherFactory {
+	private static class MockFileSystemWatcherFactory implements FileSystemWatcherFactory {
 
 		private final FileSystemWatcher watcher;
 

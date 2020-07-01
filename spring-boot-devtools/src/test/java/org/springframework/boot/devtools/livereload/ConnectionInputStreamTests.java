@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,8 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ConnectionInputStream}.
@@ -45,30 +44,26 @@ public class ConnectionInputStreamTests {
 	public void readHeader() throws Exception {
 		String header = "";
 		for (int i = 0; i < 100; i++) {
-			header += "x-something-" + i
-					+ ": xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+			header += "x-something-" + i + ": xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 		}
 		String data = header + "\r\n\r\n" + "content\r\n";
-		ConnectionInputStream inputStream = new ConnectionInputStream(
-				new ByteArrayInputStream(data.getBytes()));
-		assertThat(inputStream.readHeader(), equalTo(header));
+		ConnectionInputStream inputStream = new ConnectionInputStream(new ByteArrayInputStream(data.getBytes()));
+		assertThat(inputStream.readHeader()).isEqualTo(header);
 	}
 
 	@Test
 	public void readFully() throws Exception {
 		byte[] bytes = "the data that we want to read fully".getBytes();
-		LimitedInputStream source = new LimitedInputStream(
-				new ByteArrayInputStream(bytes), 2);
+		LimitedInputStream source = new LimitedInputStream(new ByteArrayInputStream(bytes), 2);
 		ConnectionInputStream inputStream = new ConnectionInputStream(source);
 		byte[] buffer = new byte[bytes.length];
 		inputStream.readFully(buffer, 0, buffer.length);
-		assertThat(buffer, equalTo(bytes));
+		assertThat(buffer).isEqualTo(bytes);
 	}
 
 	@Test
 	public void checkedRead() throws Exception {
-		ConnectionInputStream inputStream = new ConnectionInputStream(
-				new ByteArrayInputStream(NO_BYTES));
+		ConnectionInputStream inputStream = new ConnectionInputStream(new ByteArrayInputStream(NO_BYTES));
 		this.thrown.expect(IOException.class);
 		this.thrown.expectMessage("End of stream");
 		inputStream.checkedRead();
@@ -76,8 +71,7 @@ public class ConnectionInputStreamTests {
 
 	@Test
 	public void checkedReadArray() throws Exception {
-		ConnectionInputStream inputStream = new ConnectionInputStream(
-				new ByteArrayInputStream(NO_BYTES));
+		ConnectionInputStream inputStream = new ConnectionInputStream(new ByteArrayInputStream(NO_BYTES));
 		this.thrown.expect(IOException.class);
 		this.thrown.expectMessage("End of stream");
 		byte[] buffer = new byte[100];

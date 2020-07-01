@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,6 @@ package org.springframework.boot.autoconfigure.jdbc;
 import javax.annotation.PreDestroy;
 
 import org.springframework.beans.factory.BeanClassLoaderAware;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +30,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
  *
  * @author Phillip Webb
  * @author Stephane Nicoll
+ * @since 1.0.0
  * @see DataSourceAutoConfiguration
  */
 @Configuration
@@ -41,8 +41,11 @@ public class EmbeddedDataSourceConfiguration implements BeanClassLoaderAware {
 
 	private ClassLoader classLoader;
 
-	@Autowired
-	private DataSourceProperties properties;
+	private final DataSourceProperties properties;
+
+	public EmbeddedDataSourceConfiguration(DataSourceProperties properties) {
+		this.properties = properties;
+	}
 
 	@Override
 	public void setBeanClassLoader(ClassLoader classLoader) {
@@ -53,7 +56,8 @@ public class EmbeddedDataSourceConfiguration implements BeanClassLoaderAware {
 	public EmbeddedDatabase dataSource() {
 		EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder()
 				.setType(EmbeddedDatabaseConnection.get(this.classLoader).getType());
-		this.database = builder.setName(this.properties.getName()).build();
+		this.database = builder.setName(this.properties.getName())
+				.generateUniqueName(this.properties.isGenerateUniqueName()).build();
 		return this.database;
 	}
 

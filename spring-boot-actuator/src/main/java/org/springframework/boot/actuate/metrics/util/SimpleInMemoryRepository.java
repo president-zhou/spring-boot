@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * @param <T> the type to store
  * @author Dave Syer
  * @author Andy Wilkinson
+ * @since 1.0.0
  */
 public class SimpleInMemoryRepository<T> {
 
@@ -59,13 +60,7 @@ public class SimpleInMemoryRepository<T> {
 	}
 
 	public void set(String name, T value) {
-		T current = this.values.get(name);
-		if (current != null) {
-			this.values.replace(name, current, value);
-		}
-		else {
-			this.values.putIfAbsent(name, value);
-		}
+		this.values.put(name, value);
 	}
 
 	public long count() {
@@ -77,10 +72,7 @@ public class SimpleInMemoryRepository<T> {
 	}
 
 	public T findOne(String name) {
-		if (this.values.containsKey(name)) {
-			return this.values.get(name);
-		}
-		return null;
+		return this.values.get(name);
 	}
 
 	public Iterable<T> findAll() {
@@ -94,8 +86,7 @@ public class SimpleInMemoryRepository<T> {
 		if (!prefix.endsWith(".")) {
 			prefix = prefix + ".";
 		}
-		return new ArrayList<T>(
-				this.values.subMap(prefix, false, prefix + "~", true).values());
+		return new ArrayList<T>(this.values.subMap(prefix, false, prefix + "~", true).values());
 	}
 
 	public void setValues(ConcurrentNavigableMap<String, T> values) {
@@ -108,6 +99,7 @@ public class SimpleInMemoryRepository<T> {
 
 	/**
 	 * Callback used to update a value.
+	 *
 	 * @param <T> the value type
 	 */
 	public interface Callback<T> {

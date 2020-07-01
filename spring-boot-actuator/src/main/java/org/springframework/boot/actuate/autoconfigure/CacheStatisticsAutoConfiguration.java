@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ package org.springframework.boot.actuate.autoconfigure;
 
 import javax.cache.Caching;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hazelcast.core.IMap;
 import com.hazelcast.spring.cache.HazelcastCache;
 import net.sf.ehcache.Ehcache;
@@ -26,10 +27,10 @@ import org.infinispan.spring.provider.SpringCache;
 
 import org.springframework.boot.actuate.cache.CacheStatistics;
 import org.springframework.boot.actuate.cache.CacheStatisticsProvider;
+import org.springframework.boot.actuate.cache.CaffeineCacheStatisticsProvider;
 import org.springframework.boot.actuate.cache.ConcurrentMapCacheStatisticsProvider;
 import org.springframework.boot.actuate.cache.DefaultCacheStatistics;
 import org.springframework.boot.actuate.cache.EhCacheStatisticsProvider;
-import org.springframework.boot.actuate.cache.GuavaCacheStatisticsProvider;
 import org.springframework.boot.actuate.cache.HazelcastCacheStatisticsProvider;
 import org.springframework.boot.actuate.cache.InfinispanCacheStatisticsProvider;
 import org.springframework.boot.actuate.cache.JCacheCacheStatisticsProvider;
@@ -40,6 +41,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.cache.ehcache.EhCacheCache;
 import org.springframework.cache.guava.GuavaCache;
@@ -54,6 +56,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author Stephane Nicoll
  * @author Phillip Webb
+ * @author Eddú Meléndez
  * @since 1.3.0
  */
 @Configuration
@@ -91,6 +94,7 @@ public class CacheStatisticsAutoConfiguration {
 		public HazelcastCacheStatisticsProvider hazelcastCacheStatisticsProvider() {
 			return new HazelcastCacheStatisticsProvider();
 		}
+
 	}
 
 	@Configuration
@@ -105,12 +109,24 @@ public class CacheStatisticsAutoConfiguration {
 	}
 
 	@Configuration
+	@ConditionalOnClass({ Caffeine.class, CaffeineCacheManager.class })
+	static class CaffeineCacheStatisticsProviderConfiguration {
+
+		@Bean
+		public CaffeineCacheStatisticsProvider caffeineCacheStatisticsProvider() {
+			return new CaffeineCacheStatisticsProvider();
+		}
+
+	}
+
+	@Configuration
 	@ConditionalOnClass({ com.google.common.cache.Cache.class, GuavaCache.class })
+	@Deprecated
 	static class GuavaCacheStatisticsConfiguration {
 
 		@Bean
-		public GuavaCacheStatisticsProvider guavaCacheStatisticsProvider() {
-			return new GuavaCacheStatisticsProvider();
+		public org.springframework.boot.actuate.cache.GuavaCacheStatisticsProvider guavaCacheStatisticsProvider() {
+			return new org.springframework.boot.actuate.cache.GuavaCacheStatisticsProvider();
 		}
 
 	}
@@ -136,8 +152,7 @@ public class CacheStatisticsAutoConfiguration {
 		public CacheStatisticsProvider<Cache> noOpCacheStatisticsProvider() {
 			return new CacheStatisticsProvider<Cache>() {
 				@Override
-				public CacheStatistics getCacheStatistics(CacheManager cacheManager,
-						Cache cache) {
+				public CacheStatistics getCacheStatistics(CacheManager cacheManager, Cache cache) {
 					if (cacheManager instanceof NoOpCacheManager) {
 						return NO_OP_STATS;
 					}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,6 +35,7 @@ import org.springframework.security.oauth2.common.exceptions.InvalidTokenExcepti
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.security.oauth2.provider.OAuth2Request;
 import org.springframework.security.oauth2.provider.token.ResourceServerTokenServices;
+import org.springframework.util.Assert;
 
 /**
  * {@link ResourceServerTokenServices} that uses a user info REST service.
@@ -46,9 +47,6 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	private static final String[] PRINCIPAL_KEYS = new String[] { "user", "username",
-			"userid", "user_id", "login", "id", "name" };
-
 	private final String userInfoEndpointUrl;
 
 	private final String clientId;
@@ -58,6 +56,8 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 	private String tokenType = DefaultOAuth2AccessToken.BEARER_TYPE;
 
 	private AuthoritiesExtractor authoritiesExtractor = new FixedAuthoritiesExtractor();
+
+	private PrincipalExtractor principalExtractor = new FixedPrincipalExtractor();
 
 	public UserInfoTokenServices(String userInfoEndpointUrl, String clientId) {
 		this.userInfoEndpointUrl = userInfoEndpointUrl;
@@ -73,7 +73,13 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 	}
 
 	public void setAuthoritiesExtractor(AuthoritiesExtractor authoritiesExtractor) {
+		Assert.notNull(authoritiesExtractor, "AuthoritiesExtractor must not be null");
 		this.authoritiesExtractor = authoritiesExtractor;
+	}
+
+	public void setPrincipalExtractor(PrincipalExtractor principalExtractor) {
+		Assert.notNull(principalExtractor, "PrincipalExtractor must not be null");
+		this.principalExtractor = principalExtractor;
 	}
 
 	@Override
@@ -81,7 +87,9 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 			throws AuthenticationException, InvalidTokenException {
 		Map<String, Object> map = getMap(this.userInfoEndpointUrl, accessToken);
 		if (map.containsKey("error")) {
-			this.logger.debug("userinfo returned error: " + map.get("error"));
+			if (this.logger.isDebugEnabled()) {
+				this.logger.debug("userinfo returned error: " + map.get("error"));
+			}
 			throw new InvalidTokenException(accessToken);
 		}
 		return extractAuthentication(map);
@@ -89,29 +97,23 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 
 	private OAuth2Authentication extractAuthentication(Map<String, Object> map) {
 		Object principal = getPrincipal(map);
-		List<GrantedAuthority> authorities = this.authoritiesExtractor
-				.extractAuthorities(map);
-		OAuth2Request request = new OAuth2Request(null, this.clientId, null, true, null,
-				null, null, null, null);
-		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
-				principal, "N/A", authorities);
+		List<GrantedAuthority> authorities = this.authoritiesExtractor.extractAuthorities(map);
+		OAuth2Request request = new OAuth2Request(null, this.clientId, null, true, null, null, null, null, null);
+		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(principal, "N/A",
+				authorities);
 		token.setDetails(map);
 		return new OAuth2Authentication(request, token);
 	}
 
 	/**
 	 * Return the principal that should be used for the token. The default implementation
-	 * looks for well know {@code user*} keys in the map.
+	 * delegates to the {@link PrincipalExtractor}.
 	 * @param map the source map
 	 * @return the principal or {@literal "unknown"}
 	 */
 	protected Object getPrincipal(Map<String, Object> map) {
-		for (String key : PRINCIPAL_KEYS) {
-			if (map.containsKey(key)) {
-				return map.get(key);
-			}
-		}
-		return "unknown";
+		Object principal = this.principalExtractor.extractPrincipal(map);
+		return (principal != null) ? principal : "unknown";
 	}
 
 	@Override
@@ -121,7 +123,9 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 
 	@SuppressWarnings({ "unchecked" })
 	private Map<String, Object> getMap(String path, String accessToken) {
-		this.logger.info("Getting user info from: " + path);
+		if (this.logger.isDebugEnabled()) {
+			this.logger.debug("Getting user info from: " + path);
+		}
 		try {
 			OAuth2RestOperations restTemplate = this.restTemplate;
 			if (restTemplate == null) {
@@ -129,21 +133,17 @@ public class UserInfoTokenServices implements ResourceServerTokenServices {
 				resource.setClientId(this.clientId);
 				restTemplate = new OAuth2RestTemplate(resource);
 			}
-			OAuth2AccessToken existingToken = restTemplate.getOAuth2ClientContext()
-					.getAccessToken();
+			OAuth2AccessToken existingToken = restTemplate.getOAuth2ClientContext().getAccessToken();
 			if (existingToken == null || !accessToken.equals(existingToken.getValue())) {
-				DefaultOAuth2AccessToken token = new DefaultOAuth2AccessToken(
-						accessToken);
+				DefaultOAuth2AccessToken token = new DefaultOAuth2AccessToken(accessToken);
 				token.setTokenType(this.tokenType);
 				restTemplate.getOAuth2ClientContext().setAccessToken(token);
 			}
 			return restTemplate.getForEntity(path, Map.class).getBody();
 		}
 		catch (Exception ex) {
-			this.logger.info("Could not fetch user details: " + ex.getClass() + ", "
-					+ ex.getMessage());
-			return Collections.<String, Object>singletonMap("error",
-					"Could not fetch user details");
+			this.logger.warn("Could not fetch user details: " + ex.getClass() + ", " + ex.getMessage());
+			return Collections.<String, Object>singletonMap("error", "Could not fetch user details");
 		}
 	}
 

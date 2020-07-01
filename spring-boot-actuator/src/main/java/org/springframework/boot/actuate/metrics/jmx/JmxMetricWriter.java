@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -109,9 +109,13 @@ public class JmxMetricWriter implements MetricWriter {
 	}
 
 	private MetricValue getValue(String name) {
-		if (!this.values.containsKey(name)) {
-			this.values.putIfAbsent(name, new MetricValue());
-			MetricValue value = this.values.get(name);
+		MetricValue value = this.values.get(name);
+		if (value == null) {
+			value = new MetricValue();
+			MetricValue oldValue = this.values.putIfAbsent(name, value);
+			if (oldValue != null) {
+				value = oldValue;
+			}
 			try {
 				this.exporter.registerManagedResource(value, getName(name, value));
 			}
@@ -119,11 +123,10 @@ public class JmxMetricWriter implements MetricWriter {
 				// Could not register mbean, maybe just a race condition
 			}
 		}
-		return this.values.get(name);
+		return value;
 	}
 
-	private ObjectName getName(String name, MetricValue value)
-			throws MalformedObjectNameException {
+	private ObjectName getName(String name, MetricValue value) throws MalformedObjectNameException {
 		String key = String.format(this.domain + ":type=MetricValue,name=%s", name);
 		return this.namingStrategy.getObjectName(value, key);
 	}

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2016 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,10 +31,16 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @author Dave Syer
  * @author Christian Dupuis
  * @author Andy Wilkinson
+ * @since 1.0.0
  */
 @ConfigurationProperties(prefix = "endpoints.shutdown")
-public class ShutdownEndpoint extends AbstractEndpoint<Map<String, Object>>
-		implements ApplicationContextAware {
+public class ShutdownEndpoint extends AbstractEndpoint<Map<String, Object>> implements ApplicationContextAware {
+
+	private static final Map<String, Object> NO_CONTEXT_MESSAGE = Collections
+			.unmodifiableMap(Collections.<String, Object>singletonMap("message", "No context to shutdown."));
+
+	private static final Map<String, Object> SHUTDOWN_MESSAGE = Collections
+			.unmodifiableMap(Collections.<String, Object>singletonMap("message", "Shutting down, bye..."));
 
 	private ConfigurableApplicationContext context;
 
@@ -47,18 +53,13 @@ public class ShutdownEndpoint extends AbstractEndpoint<Map<String, Object>>
 
 	@Override
 	public Map<String, Object> invoke() {
-
 		if (this.context == null) {
-			return Collections.<String, Object>singletonMap("message",
-					"No context to shutdown.");
+			return NO_CONTEXT_MESSAGE;
 		}
-
 		try {
-			return Collections.<String, Object>singletonMap("message",
-					"Shutting down, bye...");
+			return SHUTDOWN_MESSAGE;
 		}
 		finally {
-
 			Thread thread = new Thread(new Runnable() {
 				@Override
 				public void run() {

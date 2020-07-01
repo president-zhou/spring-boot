@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2012-2019 the original author or authors.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,38 +30,46 @@ import org.slf4j.LoggerFactory;
 /**
  * Sets up the timer for the multi-player snake game WebSocket example.
  */
-public class SnakeTimer {
-
-	private static final Logger log = LoggerFactory.getLogger(SnakeTimer.class);
-
-	private static Timer gameTimer = null;
+public final class SnakeTimer {
 
 	private static final long TICK_DELAY = 100;
 
+	private static final Object MONITOR = new Object();
+
+	private static final Logger log = LoggerFactory.getLogger(SnakeTimer.class);
+
 	private static final ConcurrentHashMap<Integer, Snake> snakes = new ConcurrentHashMap<Integer, Snake>();
 
-	public static synchronized void addSnake(Snake snake) {
-		if (snakes.isEmpty()) {
-			startTimer();
+	private static Timer gameTimer = null;
+
+	private SnakeTimer() {
+	}
+
+	public static void addSnake(Snake snake) {
+		synchronized (MONITOR) {
+			if (snakes.isEmpty()) {
+				startTimer();
+			}
+			snakes.put(Integer.valueOf(snake.getId()), snake);
 		}
-		snakes.put(Integer.valueOf(snake.getId()), snake);
 	}
 
 	public static Collection<Snake> getSnakes() {
 		return Collections.unmodifiableCollection(snakes.values());
 	}
 
-	public static synchronized void removeSnake(Snake snake) {
-		snakes.remove(Integer.valueOf(snake.getId()));
-		if (snakes.isEmpty()) {
-			stopTimer();
+	public static void removeSnake(Snake snake) {
+		synchronized (MONITOR) {
+			snakes.remove(Integer.valueOf(snake.getId()));
+			if (snakes.isEmpty()) {
+				stopTimer();
+			}
 		}
 	}
 
 	public static void tick() throws Exception {
 		StringBuilder sb = new StringBuilder();
-		for (Iterator<Snake> iterator = SnakeTimer.getSnakes().iterator(); iterator
-				.hasNext();) {
+		for (Iterator<Snake> iterator = SnakeTimer.getSnakes().iterator(); iterator.hasNext();) {
 			Snake snake = iterator.next();
 			snake.update(SnakeTimer.getSnakes());
 			sb.append(snake.getLocationsJson());
@@ -106,4 +113,5 @@ public class SnakeTimer {
 			gameTimer.cancel();
 		}
 	}
+
 }

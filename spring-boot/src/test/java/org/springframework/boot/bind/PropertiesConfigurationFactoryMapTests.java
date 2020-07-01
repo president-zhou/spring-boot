@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import org.junit.Test;
 
@@ -27,11 +28,12 @@ import org.springframework.context.support.StaticMessageSource;
 import org.springframework.core.env.CompositePropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.validation.Validator;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link PropertiesConfigurationFactory} binding to a map.
@@ -51,15 +53,15 @@ public class PropertiesConfigurationFactoryMapTests {
 	@Test
 	public void testValidPropertiesLoadsWithNoErrors() throws Exception {
 		Foo foo = createFoo("map.name: blah\nmap.bar: blah");
-		assertEquals("blah", foo.map.get("bar"));
-		assertEquals("blah", foo.map.get("name"));
+		assertThat(foo.map.get("bar")).isEqualTo("blah");
+		assertThat(foo.map.get("name")).isEqualTo("blah");
 	}
 
 	@Test
 	public void testBindToNamedTarget() throws Exception {
 		this.targetName = "foo";
 		Foo foo = createFoo("hi: hello\nfoo.map.name: foo\nfoo.map.bar: blah");
-		assertEquals("blah", foo.map.get("bar"));
+		assertThat(foo.map.get("bar")).isEqualTo("blah");
 	}
 
 	@Test
@@ -67,12 +69,11 @@ public class PropertiesConfigurationFactoryMapTests {
 		this.targetName = "foo";
 		setupFactory();
 		MutablePropertySources sources = new MutablePropertySources();
-		sources.addFirst(new MapPropertySource("map",
-				Collections.singletonMap("foo.map.name", (Object) "blah")));
+		sources.addFirst(new MapPropertySource("map", Collections.singletonMap("foo.map.name", (Object) "blah")));
 		this.factory.setPropertySources(sources);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("blah", foo.map.get("name"));
+		assertThat(foo.map.get("name")).isEqualTo("blah");
 	}
 
 	@Test
@@ -81,13 +82,13 @@ public class PropertiesConfigurationFactoryMapTests {
 		setupFactory();
 		MutablePropertySources sources = new MutablePropertySources();
 		CompositePropertySource composite = new CompositePropertySource("composite");
-		composite.addPropertySource(new MapPropertySource("map",
-				Collections.singletonMap("foo.map.name", (Object) "blah")));
+		composite.addPropertySource(
+				new MapPropertySource("map", Collections.singletonMap("foo.map.name", (Object) "blah")));
 		sources.addFirst(composite);
 		this.factory.setPropertySources(sources);
 		this.factory.afterPropertiesSet();
 		Foo foo = this.factory.getObject();
-		assertEquals("blah", foo.map.get("name"));
+		assertThat(foo.map.get("name")).isEqualTo("blah");
 	}
 
 	private Foo createFoo(final String values) throws Exception {
@@ -96,8 +97,10 @@ public class PropertiesConfigurationFactoryMapTests {
 	}
 
 	private Foo bindFoo(final String values) throws Exception {
-		this.factory.setProperties(PropertiesLoaderUtils
-				.loadProperties(new ByteArrayResource(values.getBytes())));
+		Properties properties = PropertiesLoaderUtils.loadProperties(new ByteArrayResource(values.getBytes()));
+		MutablePropertySources propertySources = new MutablePropertySources();
+		propertySources.addFirst(new PropertiesPropertySource("test", properties));
+		this.factory.setPropertySources(propertySources);
 		this.factory.afterPropertiesSet();
 		return this.factory.getObject();
 	}
@@ -112,6 +115,7 @@ public class PropertiesConfigurationFactoryMapTests {
 
 	// Foo needs to be public and to have setters for all properties
 	public static class Foo {
+
 		private Map<String, Object> map = new HashMap<String, Object>();
 
 		public Map<String, Object> getMap() {
@@ -121,6 +125,7 @@ public class PropertiesConfigurationFactoryMapTests {
 		public void setMap(Map<String, Object> map) {
 			this.map = map;
 		}
+
 	}
 
 }

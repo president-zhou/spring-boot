@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,7 +25,7 @@ import javax.annotation.PostConstruct;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -46,6 +46,7 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.E
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
+import org.springframework.security.oauth2.provider.token.AccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 
 /**
@@ -62,58 +63,58 @@ import org.springframework.security.oauth2.provider.token.TokenStore;
 @ConditionalOnMissingBean(AuthorizationServerConfigurer.class)
 @ConditionalOnBean(AuthorizationServerEndpointsConfiguration.class)
 @EnableConfigurationProperties(AuthorizationServerProperties.class)
-public class OAuth2AuthorizationServerConfiguration
-		extends AuthorizationServerConfigurerAdapter {
+public class OAuth2AuthorizationServerConfiguration extends AuthorizationServerConfigurerAdapter {
 
-	private static final Log logger = LogFactory
-			.getLog(OAuth2AuthorizationServerConfiguration.class);
+	private static final Log logger = LogFactory.getLog(OAuth2AuthorizationServerConfiguration.class);
 
-	@Autowired
-	private BaseClientDetails details;
+	private final BaseClientDetails details;
 
-	@Autowired
-	private AuthenticationManager authenticationManager;
+	private final AuthenticationManager authenticationManager;
 
-	@Autowired(required = false)
-	private TokenStore tokenStore;
+	private final TokenStore tokenStore;
 
-	@Autowired
-	private AuthorizationServerProperties properties;
+	private final AccessTokenConverter tokenConverter;
+
+	private final AuthorizationServerProperties properties;
+
+	public OAuth2AuthorizationServerConfiguration(BaseClientDetails details,
+			AuthenticationManager authenticationManager, ObjectProvider<TokenStore> tokenStore,
+			ObjectProvider<AccessTokenConverter> tokenConverter, AuthorizationServerProperties properties) {
+		this.details = details;
+		this.authenticationManager = authenticationManager;
+		this.tokenStore = tokenStore.getIfAvailable();
+		this.tokenConverter = tokenConverter.getIfAvailable();
+		this.properties = properties;
+	}
 
 	@Override
 	public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-		ClientDetailsServiceBuilder<InMemoryClientDetailsServiceBuilder>.ClientBuilder builder = clients
-				.inMemory().withClient(this.details.getClientId());
-		builder.secret(this.details.getClientSecret())
-				.resourceIds(this.details.getResourceIds().toArray(new String[0]))
-				.authorizedGrantTypes(
-						this.details.getAuthorizedGrantTypes().toArray(new String[0]))
-				.authorities(
-						AuthorityUtils.authorityListToSet(this.details.getAuthorities())
-								.toArray(new String[0]))
+		ClientDetailsServiceBuilder<InMemoryClientDetailsServiceBuilder>.ClientBuilder builder = clients.inMemory()
+				.withClient(this.details.getClientId());
+		builder.secret(this.details.getClientSecret()).resourceIds(this.details.getResourceIds().toArray(new String[0]))
+				.authorizedGrantTypes(this.details.getAuthorizedGrantTypes().toArray(new String[0]))
+				.authorities(AuthorityUtils.authorityListToSet(this.details.getAuthorities()).toArray(new String[0]))
 				.scopes(this.details.getScope().toArray(new String[0]));
 
 		if (this.details.getAutoApproveScopes() != null) {
-			builder.autoApprove(
-					this.details.getAutoApproveScopes().toArray(new String[0]));
+			builder.autoApprove(this.details.getAutoApproveScopes().toArray(new String[0]));
 		}
 		if (this.details.getAccessTokenValiditySeconds() != null) {
-			builder.accessTokenValiditySeconds(
-					this.details.getAccessTokenValiditySeconds());
+			builder.accessTokenValiditySeconds(this.details.getAccessTokenValiditySeconds());
 		}
 		if (this.details.getRefreshTokenValiditySeconds() != null) {
-			builder.refreshTokenValiditySeconds(
-					this.details.getRefreshTokenValiditySeconds());
+			builder.refreshTokenValiditySeconds(this.details.getRefreshTokenValiditySeconds());
 		}
 		if (this.details.getRegisteredRedirectUri() != null) {
-			builder.redirectUris(
-					this.details.getRegisteredRedirectUri().toArray(new String[0]));
+			builder.redirectUris(this.details.getRegisteredRedirectUri().toArray(new String[0]));
 		}
 	}
 
 	@Override
-	public void configure(AuthorizationServerEndpointsConfigurer endpoints)
-			throws Exception {
+	public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
+		if (this.tokenConverter != null) {
+			endpoints.accessTokenConverter(this.tokenConverter);
+		}
 		if (this.tokenStore != null) {
 			endpoints.tokenStore(this.tokenStore);
 		}
@@ -123,8 +124,7 @@ public class OAuth2AuthorizationServerConfiguration
 	}
 
 	@Override
-	public void configure(AuthorizationServerSecurityConfigurer security)
-			throws Exception {
+	public void configure(AuthorizationServerSecurityConfigurer security) throws Exception {
 		if (this.properties.getCheckTokenAccess() != null) {
 			security.checkTokenAccess(this.properties.getCheckTokenAccess());
 		}
@@ -139,15 +139,17 @@ public class OAuth2AuthorizationServerConfiguration
 	@Configuration
 	protected static class ClientDetailsLogger {
 
-		@Autowired
-		private OAuth2ClientProperties credentials;
+		private final OAuth2ClientProperties credentials;
+
+		protected ClientDetailsLogger(OAuth2ClientProperties credentials) {
+			this.credentials = credentials;
+		}
 
 		@PostConstruct
 		public void init() {
 			String prefix = "security.oauth2.client";
 			boolean defaultSecret = this.credentials.isDefaultSecret();
-			logger.info(String.format(
-					"Initialized OAuth2 Client\n\n%s.clientId = %s\n%s.secret = %s\n\n",
+			logger.info(String.format("Initialized OAuth2 Client%n%n%s.client-id = %s%n" + "%s.client-secret = %s%n%n",
 					prefix, this.credentials.getClientId(), prefix,
 					defaultSecret ? this.credentials.getClientSecret() : "****"));
 		}
@@ -158,11 +160,14 @@ public class OAuth2AuthorizationServerConfiguration
 	@ConditionalOnMissingBean(BaseClientDetails.class)
 	protected static class BaseClientDetailsConfiguration {
 
-		@Autowired
-		private OAuth2ClientProperties client;
+		private final OAuth2ClientProperties client;
+
+		protected BaseClientDetailsConfiguration(OAuth2ClientProperties client) {
+			this.client = client;
+		}
 
 		@Bean
-		@ConfigurationProperties("security.oauth2.client")
+		@ConfigurationProperties(prefix = "security.oauth2.client")
 		public BaseClientDetails oauth2ClientDetails() {
 			BaseClientDetails details = new BaseClientDetails();
 			if (this.client.getClientId() == null) {
@@ -170,10 +175,9 @@ public class OAuth2AuthorizationServerConfiguration
 			}
 			details.setClientId(this.client.getClientId());
 			details.setClientSecret(this.client.getClientSecret());
-			details.setAuthorizedGrantTypes(Arrays.asList("authorization_code",
-					"password", "client_credentials", "implicit", "refresh_token"));
-			details.setAuthorities(
-					AuthorityUtils.commaSeparatedStringToAuthorityList("ROLE_USER"));
+			details.setAuthorizedGrantTypes(
+					Arrays.asList("authorization_code", "password", "client_credentials", "implicit", "refresh_token"));
+			details.setAuthorities(AuthorityUtils.commaSeparatedStringToAuthorityList("ROLE_USER"));
 			details.setRegisteredRedirectUri(Collections.<String>emptySet());
 			return details;
 		}

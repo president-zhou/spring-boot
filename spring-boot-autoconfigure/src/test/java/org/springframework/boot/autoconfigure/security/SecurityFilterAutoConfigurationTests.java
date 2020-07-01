@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,14 +18,14 @@ package org.springframework.boot.autoconfigure.security;
 
 import org.junit.Test;
 
-import org.springframework.boot.autoconfigure.PropertyPlaceholderAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.autoconfigure.security.SecurityAutoConfigurationTests.WebSecurity;
 import org.springframework.boot.autoconfigure.security.SecurityFilterAutoConfigurationEarlyInitializationTests.ConverterBean;
 import org.springframework.boot.autoconfigure.security.SecurityFilterAutoConfigurationEarlyInitializationTests.DeserializerBean;
 import org.springframework.boot.autoconfigure.security.SecurityFilterAutoConfigurationEarlyInitializationTests.ExampleController;
 import org.springframework.boot.autoconfigure.security.SecurityFilterAutoConfigurationEarlyInitializationTests.JacksonModuleBean;
-import org.springframework.boot.autoconfigure.test.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.DispatcherServletAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.HttpMessageConvertersAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.ServerPropertiesAutoConfiguration;
@@ -43,8 +43,7 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 public class SecurityFilterAutoConfigurationTests {
 
 	@Test
-	public void filterAutoConfigurationWorksWithoutSecurityAutoConfiguration()
-			throws Exception {
+	public void filterAutoConfigurationWorksWithoutSecurityAutoConfiguration() throws Exception {
 		AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
 		context.setServletContext(new MockServletContext());
 		try {
@@ -58,13 +57,10 @@ public class SecurityFilterAutoConfigurationTests {
 	}
 
 	@Configuration
-	@Import({ DeserializerBean.class, JacksonModuleBean.class, ExampleController.class,
-			ConverterBean.class })
-	@ImportAutoConfiguration({ WebMvcAutoConfiguration.class,
-			JacksonAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class,
-			DispatcherServletAutoConfiguration.class, WebSecurity.class,
-			SecurityFilterAutoConfiguration.class,
-			ServerPropertiesAutoConfiguration.class,
+	@Import({ DeserializerBean.class, JacksonModuleBean.class, ExampleController.class, ConverterBean.class })
+	@ImportAutoConfiguration({ WebMvcAutoConfiguration.class, JacksonAutoConfiguration.class,
+			HttpMessageConvertersAutoConfiguration.class, DispatcherServletAutoConfiguration.class, WebSecurity.class,
+			SecurityFilterAutoConfiguration.class, ServerPropertiesAutoConfiguration.class,
 			PropertyPlaceholderAutoConfiguration.class })
 	static class Config {
 

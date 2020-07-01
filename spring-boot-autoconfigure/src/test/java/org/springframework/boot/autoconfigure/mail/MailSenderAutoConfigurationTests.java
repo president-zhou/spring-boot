@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,16 +32,14 @@ import org.junit.rules.ExpectedException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.boot.autoconfigure.jndi.JndiPropertiesHidingClassLoader;
 import org.springframework.boot.autoconfigure.jndi.TestableInitialContextFactory;
-import org.springframework.boot.test.EnvironmentTestUtils;
+import org.springframework.boot.test.util.EnvironmentTestUtils;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -67,23 +65,20 @@ public class MailSenderAutoConfigurationTests {
 	@Before
 	public void setupJndi() {
 		this.initialContextFactory = System.getProperty(Context.INITIAL_CONTEXT_FACTORY);
-		System.setProperty(Context.INITIAL_CONTEXT_FACTORY,
-				TestableInitialContextFactory.class.getName());
+		System.setProperty(Context.INITIAL_CONTEXT_FACTORY, TestableInitialContextFactory.class.getName());
 	}
 
 	@Before
 	public void setupThreadContextClassLoader() {
 		this.threadContextClassLoader = Thread.currentThread().getContextClassLoader();
-		Thread.currentThread().setContextClassLoader(
-				new JndiPropertiesHidingClassLoader(getClass().getClassLoader()));
+		Thread.currentThread().setContextClassLoader(new JndiPropertiesHidingClassLoader(getClass().getClassLoader()));
 	}
 
 	@After
 	public void close() {
 		TestableInitialContextFactory.clearAll();
 		if (this.initialContextFactory != null) {
-			System.setProperty(Context.INITIAL_CONTEXT_FACTORY,
-					this.initialContextFactory);
+			System.setProperty(Context.INITIAL_CONTEXT_FACTORY, this.initialContextFactory);
 		}
 		else {
 			System.clearProperty(Context.INITIAL_CONTEXT_FACTORY);
@@ -98,52 +93,46 @@ public class MailSenderAutoConfigurationTests {
 	public void smtpHostSet() {
 		String host = "192.168.1.234";
 		load(EmptyConfig.class, "spring.mail.host:" + host);
-		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context
-				.getBean(JavaMailSender.class);
-		assertEquals(host, bean.getHost());
-		assertEquals(JavaMailSenderImpl.DEFAULT_PORT, bean.getPort());
-		assertEquals(JavaMailSenderImpl.DEFAULT_PROTOCOL, bean.getProtocol());
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getHost()).isEqualTo(host);
+		assertThat(bean.getPort()).isEqualTo(JavaMailSenderImpl.DEFAULT_PORT);
+		assertThat(bean.getProtocol()).isEqualTo(JavaMailSenderImpl.DEFAULT_PROTOCOL);
 	}
 
 	@Test
 	public void smtpHostWithSettings() {
 		String host = "192.168.1.234";
-		load(EmptyConfig.class, "spring.mail.host:" + host, "spring.mail.port:42",
-				"spring.mail.username:john", "spring.mail.password:secret",
-				"spring.mail.default-encoding:US-ASCII", "spring.mail.protocol:smtps");
-		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context
-				.getBean(JavaMailSender.class);
-		assertEquals(host, bean.getHost());
-		assertEquals(42, bean.getPort());
-		assertEquals("john", bean.getUsername());
-		assertEquals("secret", bean.getPassword());
-		assertEquals("US-ASCII", bean.getDefaultEncoding());
-		assertEquals("smtps", bean.getProtocol());
+		load(EmptyConfig.class, "spring.mail.host:" + host, "spring.mail.port:42", "spring.mail.username:john",
+				"spring.mail.password:secret", "spring.mail.default-encoding:US-ASCII", "spring.mail.protocol:smtps");
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getHost()).isEqualTo(host);
+		assertThat(bean.getPort()).isEqualTo(42);
+		assertThat(bean.getUsername()).isEqualTo("john");
+		assertThat(bean.getPassword()).isEqualTo("secret");
+		assertThat(bean.getDefaultEncoding()).isEqualTo("US-ASCII");
+		assertThat(bean.getProtocol()).isEqualTo("smtps");
 	}
 
 	@Test
 	public void smtpHostWithJavaMailProperties() {
-		load(EmptyConfig.class, "spring.mail.host:localhost",
-				"spring.mail.properties.mail.smtp.auth:true");
-		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context
-				.getBean(JavaMailSender.class);
-		assertEquals("true", bean.getJavaMailProperties().get("mail.smtp.auth"));
+		load(EmptyConfig.class, "spring.mail.host:localhost", "spring.mail.properties.mail.smtp.auth:true");
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getJavaMailProperties().get("mail.smtp.auth")).isEqualTo("true");
 	}
 
 	@Test
 	public void smtpHostNotSet() {
 		load(EmptyConfig.class);
-		assertEquals(0, this.context.getBeansOfType(JavaMailSender.class).size());
+		assertThat(this.context.getBeansOfType(JavaMailSender.class)).isEmpty();
 	}
 
 	@Test
 	public void mailSenderBackOff() {
-		load(ManualMailConfiguration.class, "spring.mail.host:smtp.acme.org",
-				"spring.mail.user:user", "spring.mail.password:secret");
-		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context
-				.getBean(JavaMailSender.class);
-		assertNull(bean.getUsername());
-		assertNull(bean.getPassword());
+		load(ManualMailConfiguration.class, "spring.mail.host:smtp.acme.org", "spring.mail.user:user",
+				"spring.mail.password:secret");
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getUsername()).isNull();
+		assertThat(bean.getPassword()).isNull();
 	}
 
 	@Test
@@ -151,25 +140,24 @@ public class MailSenderAutoConfigurationTests {
 		Session session = configureJndiSession("foo");
 		load(EmptyConfig.class, "spring.mail.jndi-name:foo");
 		Session sessionBean = this.context.getBean(Session.class);
-		assertEquals(session, sessionBean);
-		assertEquals(sessionBean,
-				this.context.getBean(JavaMailSenderImpl.class).getSession());
+		assertThat(sessionBean).isEqualTo(session);
+		assertThat(this.context.getBean(JavaMailSenderImpl.class).getSession()).isEqualTo(sessionBean);
 	}
 
 	@Test
 	public void jndiSessionIgnoredIfJndiNameNotSet() throws NamingException {
 		configureJndiSession("foo");
 		load(EmptyConfig.class, "spring.mail.host:smtp.acme.org");
-		assertEquals(0, this.context.getBeanNamesForType(Session.class).length);
-		assertNotNull(this.context.getBean(JavaMailSender.class));
+		assertThat(this.context.getBeanNamesForType(Session.class).length).isEqualTo(0);
+		assertThat(this.context.getBean(JavaMailSender.class)).isNotNull();
 	}
 
 	@Test
 	public void jndiSessionNotUsedIfJndiNameNotSet() throws NamingException {
 		configureJndiSession("foo");
 		load(EmptyConfig.class);
-		assertEquals(0, this.context.getBeanNamesForType(Session.class).length);
-		assertEquals(0, this.context.getBeanNamesForType(JavaMailSender.class).length);
+		assertThat(this.context.getBeanNamesForType(Session.class).length).isEqualTo(0);
+		assertThat(this.context.getBeanNamesForType(JavaMailSender.class).length).isEqualTo(0);
 	}
 
 	@Test
@@ -180,23 +168,44 @@ public class MailSenderAutoConfigurationTests {
 	}
 
 	@Test
+	public void jndiSessionTakesPrecedenceOverProperties() throws NamingException {
+		Session session = configureJndiSession("foo");
+		load(EmptyConfig.class, "spring.mail.jndi-name:foo", "spring.mail.host:localhost");
+		Session sessionBean = this.context.getBean(Session.class);
+		assertThat(sessionBean).isEqualTo(session);
+		assertThat(this.context.getBean(JavaMailSenderImpl.class).getSession()).isEqualTo(sessionBean);
+	}
+
+	@Test
+	public void defaultEncodingWithProperties() {
+		load(EmptyConfig.class, "spring.mail.host:localhost", "spring.mail.default-encoding:UTF-16");
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getDefaultEncoding()).isEqualTo("UTF-16");
+	}
+
+	@Test
+	public void defaultEncodingWithJndi() throws NamingException {
+		configureJndiSession("foo");
+		load(EmptyConfig.class, "spring.mail.jndi-name:foo", "spring.mail.default-encoding:UTF-16");
+		JavaMailSenderImpl bean = (JavaMailSenderImpl) this.context.getBean(JavaMailSender.class);
+		assertThat(bean.getDefaultEncoding()).isEqualTo("UTF-16");
+	}
+
+	@Test
 	public void connectionOnStartup() throws MessagingException {
-		load(MockMailConfiguration.class, "spring.mail.host:10.0.0.23",
-				"spring.mail.test-connection:true");
+		load(MockMailConfiguration.class, "spring.mail.host:10.0.0.23", "spring.mail.test-connection:true");
 		JavaMailSenderImpl mailSender = this.context.getBean(JavaMailSenderImpl.class);
 		verify(mailSender, times(1)).testConnection();
 	}
 
 	@Test
 	public void connectionOnStartupNotCalled() throws MessagingException {
-		load(MockMailConfiguration.class, "spring.mail.host:10.0.0.23",
-				"spring.mail.test-connection:false");
+		load(MockMailConfiguration.class, "spring.mail.host:10.0.0.23", "spring.mail.test-connection:false");
 		JavaMailSenderImpl mailSender = this.context.getBean(JavaMailSenderImpl.class);
 		verify(mailSender, never()).testConnection();
 	}
 
-	private Session configureJndiSession(String name)
-			throws IllegalStateException, NamingException {
+	private Session configureJndiSession(String name) throws IllegalStateException, NamingException {
 		Properties properties = new Properties();
 		Session session = Session.getDefaultInstance(properties);
 		TestableInitialContextFactory.bind(name, session);
@@ -207,8 +216,7 @@ public class MailSenderAutoConfigurationTests {
 		this.context = doLoad(new Class<?>[] { config }, environment);
 	}
 
-	private AnnotationConfigApplicationContext doLoad(Class<?>[] configs,
-			String... environment) {
+	private AnnotationConfigApplicationContext doLoad(Class<?>[] configs, String... environment) {
 		AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext();
 		EnvironmentTestUtils.addEnvironment(applicationContext, environment);
 		applicationContext.register(configs);

@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,10 +30,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.bind.RelaxedDataBinder;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.DatabaseDriver;
 import org.springframework.boot.jta.XADataSourceWrapper;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
@@ -46,10 +47,10 @@ import org.springframework.util.StringUtils;
  * @author Josh Long
  * @since 1.2.0
  */
+@Configuration
 @AutoConfigureBefore(DataSourceAutoConfiguration.class)
 @EnableConfigurationProperties(DataSourceProperties.class)
-@ConditionalOnClass({ DataSource.class, TransactionManager.class,
-		EmbeddedDatabaseType.class })
+@ConditionalOnClass({ DataSource.class, TransactionManager.class, EmbeddedDatabaseType.class })
 @ConditionalOnBean(XADataSourceWrapper.class)
 @ConditionalOnMissingBean(DataSource.class)
 public class XADataSourceAutoConfiguration implements BeanClassLoaderAware {
@@ -66,7 +67,6 @@ public class XADataSourceAutoConfiguration implements BeanClassLoaderAware {
 	private ClassLoader classLoader;
 
 	@Bean
-	@ConfigurationProperties(prefix = DataSourceProperties.PREFIX)
 	public DataSource dataSource() throws Exception {
 		XADataSource xaDataSource = this.xaDataSource;
 		if (xaDataSource == null) {
@@ -83,11 +83,9 @@ public class XADataSourceAutoConfiguration implements BeanClassLoaderAware {
 	private XADataSource createXaDataSource() {
 		String className = this.properties.getXa().getDataSourceClassName();
 		if (!StringUtils.hasLength(className)) {
-			className = DatabaseDriver.fromJdbcUrl(this.properties.getUrl())
-					.getXaDataSourceClassName();
+			className = DatabaseDriver.fromJdbcUrl(this.properties.determineUrl()).getXaDataSourceClassName();
 		}
-		Assert.state(StringUtils.hasLength(className),
-				"No XA DataSource class name specified");
+		Assert.state(StringUtils.hasLength(className), "No XA DataSource class name specified");
 		XADataSource dataSource = createXaDataSourceInstance(className);
 		bindXaProperties(dataSource, this.properties);
 		return dataSource;
@@ -101,16 +99,15 @@ public class XADataSourceAutoConfiguration implements BeanClassLoaderAware {
 			return (XADataSource) instance;
 		}
 		catch (Exception ex) {
-			throw new IllegalStateException(
-					"Unable to create XADataSource instance from '" + className + "'");
+			throw new IllegalStateException("Unable to create XADataSource instance from '" + className + "'");
 		}
 	}
 
 	private void bindXaProperties(XADataSource target, DataSourceProperties properties) {
 		MutablePropertyValues values = new MutablePropertyValues();
-		values.add("user", this.properties.getUsername());
-		values.add("password", this.properties.getPassword());
-		values.add("url", this.properties.getUrl());
+		values.add("user", this.properties.determineUsername());
+		values.add("password", this.properties.determinePassword());
+		values.add("url", this.properties.determineUrl());
 		values.addPropertyValues(properties.getXa().getProperties());
 		new RelaxedDataBinder(target).withAlias("user", "username").bind(values);
 	}

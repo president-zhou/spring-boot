@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,15 +16,16 @@
 
 package org.springframework.boot.actuate.autoconfigure;
 
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.Servlet;
 import javax.sql.DataSource;
 
 import org.apache.catalina.startup.Tomcat;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.cache.CacheStatisticsProvider;
 import org.springframework.boot.actuate.endpoint.CachePublicMetrics;
 import org.springframework.boot.actuate.endpoint.DataSourcePublicMetrics;
@@ -47,13 +48,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnJava;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnJava.JavaVersion;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.boot.autoconfigure.integration.IntegrationAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.metadata.DataSourcePoolMetadataProvider;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.integration.monitor.IntegrationMBeanExporter;
+import org.springframework.integration.config.EnableIntegrationManagement;
+import org.springframework.integration.support.management.IntegrationManagementConfigurer;
 import org.springframework.lang.UsesJava7;
 
 /**
@@ -62,6 +65,7 @@ import org.springframework.lang.UsesJava7;
  * @author Stephane Nicoll
  * @author Phillip Webb
  * @author Johannes Edmeier
+ * @author Artem Bilan
  * @since 1.2.0
  */
 @Configuration
@@ -71,9 +75,11 @@ import org.springframework.lang.UsesJava7;
 		IntegrationAutoConfiguration.class })
 public class PublicMetricsAutoConfiguration {
 
-	@Autowired(required = false)
-	@ExportMetricReader
-	private List<MetricReader> metricReaders = Collections.emptyList();
+	private final List<MetricReader> metricReaders;
+
+	public PublicMetricsAutoConfiguration(@ExportMetricReader ObjectProvider<List<MetricReader>> metricReaders) {
+		this.metricReaders = metricReaders.getIfAvailable();
+	}
 
 	@Bean
 	public SystemPublicMetrics systemPublicMetrics() {
@@ -82,14 +88,14 @@ public class PublicMetricsAutoConfiguration {
 
 	@Bean
 	public MetricReaderPublicMetrics metricReaderPublicMetrics() {
-		return new MetricReaderPublicMetrics(new CompositeMetricReader(
-				this.metricReaders.toArray(new MetricReader[0])));
+		MetricReader[] readers = (this.metricReaders != null)
+				? this.metricReaders.toArray(new MetricReader[this.metricReaders.size()]) : new MetricReader[0];
+		return new MetricReaderPublicMetrics(new CompositeMetricReader(readers));
 	}
 
 	@Bean
 	@ConditionalOnBean(RichGaugeReader.class)
-	public RichGaugeReaderPublicMetrics richGaugePublicMetrics(
-			RichGaugeReader richGaugeReader) {
+	public RichGaugeReaderPublicMetrics richGaugePublicMetrics(RichGaugeReader richGaugeReader) {
 		return new RichGaugeReaderPublicMetrics(richGaugeReader);
 	}
 
@@ -128,25 +134,34 @@ public class PublicMetricsAutoConfiguration {
 		@Bean
 		@ConditionalOnMissingBean
 		@ConditionalOnBean(CacheStatisticsProvider.class)
-		public CachePublicMetrics cachePublicMetrics() {
-			return new CachePublicMetrics();
+		public CachePublicMetrics cachePublicMetrics(Map<String, CacheManager> cacheManagers,
+				Collection<CacheStatisticsProvider<?>> statisticsProviders) {
+			return new CachePublicMetrics(cacheManagers, statisticsProviders);
 		}
 
 	}
 
 	@Configuration
-	@ConditionalOnClass(IntegrationMBeanExporter.class)
-	@ConditionalOnBean(IntegrationMBeanExporter.class)
+	@ConditionalOnClass(EnableIntegrationManagement.class)
 	@ConditionalOnJava(JavaVersion.SEVEN)
 	@UsesJava7
 	static class IntegrationMetricsConfiguration {
 
+		@Bean(name = IntegrationManagementConfigurer.MANAGEMENT_CONFIGURER_NAME)
+		@ConditionalOnMissingBean(value = IntegrationManagementConfigurer.class,
+				name = IntegrationManagementConfigurer.MANAGEMENT_CONFIGURER_NAME, search = SearchStrategy.CURRENT)
+		public IntegrationManagementConfigurer managementConfigurer() {
+			IntegrationManagementConfigurer configurer = new IntegrationManagementConfigurer();
+			configurer.setDefaultCountsEnabled(true);
+			configurer.setDefaultStatsEnabled(true);
+			return configurer;
+		}
+
 		@Bean
 		@ConditionalOnMissingBean(name = "springIntegrationPublicMetrics")
 		public MetricReaderPublicMetrics springIntegrationPublicMetrics(
-				IntegrationMBeanExporter exporter) {
-			return new MetricReaderPublicMetrics(
-					new SpringIntegrationMetricReader(exporter));
+				IntegrationManagementConfigurer managementConfigurer) {
+			return new MetricReaderPublicMetrics(new SpringIntegrationMetricReader(managementConfigurer));
 		}
 
 	}

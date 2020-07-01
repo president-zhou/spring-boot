@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2014 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,8 +22,7 @@ import org.junit.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests to reproduce reported issues.
@@ -48,11 +47,10 @@ public class ReproTests {
 		SpringApplication application = new SpringApplication(Config.class);
 
 		application.setWebEnvironment(false);
-		this.context = application.run(
-				"--spring.config.name=enableprofileviaapplicationproperties",
+		this.context = application.run("--spring.config.name=enableprofileviaapplicationproperties",
 				"--spring.profiles.active=dev");
-		assertThat(this.context.getEnvironment().acceptsProfiles("dev"), equalTo(true));
-		assertThat(this.context.getEnvironment().acceptsProfiles("a"), equalTo(true));
+		assertThat(this.context.getEnvironment().acceptsProfiles("dev")).isTrue();
+		assertThat(this.context.getEnvironment().acceptsProfiles("a")).isTrue();
 	}
 
 	@Test
@@ -165,12 +163,10 @@ public class ReproTests {
 		assertVersionProperty(this.context, "A", "C", "A");
 	}
 
-	private void assertVersionProperty(ConfigurableApplicationContext context,
-			String expectedVersion, String... expectedActiveProfiles) {
-		assertThat(context.getEnvironment().getActiveProfiles(),
-				equalTo(expectedActiveProfiles));
-		assertThat("version mismatch", context.getEnvironment().getProperty("version"),
-				equalTo(expectedVersion));
+	private void assertVersionProperty(ConfigurableApplicationContext context, String expectedVersion,
+			String... expectedActiveProfiles) {
+		assertThat(context.getEnvironment().getActiveProfiles()).isEqualTo(expectedActiveProfiles);
+		assertThat(context.getEnvironment().getProperty("version")).as("version mismatch").isEqualTo(expectedVersion);
 		context.close();
 	}
 
@@ -178,4 +174,5 @@ public class ReproTests {
 	public static class Config {
 
 	}
+
 }
